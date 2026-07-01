@@ -41,7 +41,10 @@ INSTALLED_APPS = [
     # Apps propias
     "usuarios",
     "contabilidad",
-    "terceros"
+    "terceros",
+    "inventario",
+    "ventas",
+    
 ]
 
 MIDDLEWARE = [
