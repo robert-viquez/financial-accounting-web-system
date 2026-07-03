@@ -82,3 +82,12 @@ class CompraService:
             costo_unitario=detalle.costo_unitario,
             descripcion=f"Reversión de compra {detalle.compra.numero_factura}",
         )
+        
+    @staticmethod
+    def finalizar_compra(compra):
+        CompraService.recalcular_totales_compra(compra)
+
+        if compra.tipo_compra == "CREDITO":
+            from finanzas.services import FinanzasService
+
+            FinanzasService.crear_cuenta_por_pagar_desde_compra(compra)

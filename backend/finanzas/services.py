@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
 
-from .models import CuentaPorCobrar
+from .models import CuentaPorCobrar, CuentaPorPagar
 
 
 class FinanzasService:
@@ -31,6 +31,25 @@ class FinanzasService:
         return cuenta
 
     @staticmethod
+    @transaction.atomic
+    def crear_cuenta_por_pagar_desde_compra(compra, dias_credito=30):
+        if compra.tipo_compra != "CREDITO":
+            return None
+
+        cuenta, creada = CuentaPorPagar.objects.get_or_create(
+            compra=compra,
+            defaults={
+                "proveedor": compra.proveedor,
+                "fecha_vencimiento": timezone.now().date() + timedelta(days=dias_credito),
+                "monto_original": compra.total,
+                "saldo": compra.total,
+                "estado": "PENDIENTE",
+            },
+        )
+
+        return cuenta
+
+    @staticmethod
     def validar_pago_cliente(pago):
         if pago.monto <= 0:
             raise ValidationError("El monto del pago debe ser mayor a cero.")
@@ -45,6 +64,31 @@ class FinanzasService:
     @transaction.atomic
     def aplicar_pago_cliente(pago):
         cuenta = pago.cuenta_por_cobrar
+
+        cuenta.saldo -= pago.monto
+
+        if cuenta.saldo == 0:
+            cuenta.estado = "PAGADA"
+        elif cuenta.saldo < cuenta.monto_original:
+            cuenta.estado = "PARCIAL"
+
+        cuenta.save(update_fields=["saldo", "estado"])
+
+    @staticmethod
+    def validar_pago_proveedor(pago):
+        if pago.monto <= 0:
+            raise ValidationError("El monto del pago debe ser mayor a cero.")
+
+        if pago.monto > pago.cuenta_por_pagar.saldo:
+            raise ValidationError("El pago no puede ser mayor al saldo pendiente.")
+
+        if pago.cuenta_por_pagar.estado in ["PAGADA", "ANULADA"]:
+            raise ValidationError("No se puede pagar una cuenta pagada o anulada.")
+
+    @staticmethod
+    @transaction.atomic
+    def aplicar_pago_proveedor(pago):
+        cuenta = pago.cuenta_por_pagar
 
         cuenta.saldo -= pago.monto
 

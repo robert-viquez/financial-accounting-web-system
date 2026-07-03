@@ -73,7 +73,7 @@ class DetalleCompra(models.Model):
             self.inventario_actualizado = True
             super().save(update_fields=["inventario_actualizado"])
 
-        CompraService.recalcular_totales_compra(self.compra)
+        CompraService.finalizar_compra(self.compra)
 
     def delete(self, *args, **kwargs):
         from .services import CompraService

@@ -39,6 +39,15 @@ class VentaService:
         venta.save(update_fields=["subtotal", "impuesto", "total"])
 
     @staticmethod
+    def finalizar_venta(venta):
+        VentaService.recalcular_totales_venta(venta)
+
+        if venta.tipo_venta == "CREDITO":
+            from finanzas.services import FinanzasService
+
+            FinanzasService.crear_cuenta_por_cobrar_desde_venta(venta)
+            
+    @staticmethod
     @transaction.atomic
     def descontar_inventario_por_venta(detalle):
         producto = detalle.producto

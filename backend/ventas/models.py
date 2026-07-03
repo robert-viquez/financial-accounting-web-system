@@ -76,7 +76,7 @@ class DetalleVenta(models.Model):
             self.inventario_descontado = True
             super().save(update_fields=["inventario_descontado"])
 
-        VentaService.recalcular_totales_venta(self.venta)
+        VentaService.finalizar_venta(self.venta)
 
     def delete(self, *args, **kwargs):
         from .services import VentaService
