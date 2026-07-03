@@ -1,9 +1,8 @@
-from decimal import Decimal
-from django.db import models
 from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
+from django.db import models
+
 from terceros.models import Cliente, MedioPago
-from inventario.models import Producto, MovimientoInventario
+from inventario.models import Producto
 
 
 class Venta(models.Model):
@@ -30,12 +29,15 @@ class Venta(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADO, default="EMITIDA")
     observaciones = models.TextField(blank=True, null=True)
 
+    class Meta:
+        verbose_name = "Venta"
+        verbose_name_plural = "Ventas"
+        ordering = ["-fecha"]
+
     def recalcular_totales(self):
-        detalles = self.detalles.all()
-        self.subtotal = sum(detalle.subtotal for detalle in detalles)
-        self.impuesto = Decimal("0.00")
-        self.total = self.subtotal - self.descuento + self.impuesto
-        self.save(update_fields=["subtotal", "impuesto", "total"])
+        from .services import VentaService
+
+        VentaService.recalcular_totales_venta(self)
 
     def __str__(self):
         return self.numero_comprobante
@@ -50,63 +52,42 @@ class DetalleVenta(models.Model):
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     inventario_descontado = models.BooleanField(default=False)
 
+    class Meta:
+        verbose_name = "Detalle de venta"
+        verbose_name_plural = "Detalles de venta"
+
     def clean(self):
-        if self.cantidad <= 0:
-            raise ValidationError("La cantidad debe ser mayor a cero.")
+        from .services import VentaService
 
-        if self.precio_unitario < 0:
-            raise ValidationError("El precio unitario no puede ser negativo.")
-
-        if self.descuento < 0:
-            raise ValidationError("El descuento no puede ser negativo.")
-
-        if not self.pk and self.producto.stock_actual < self.cantidad:
-            raise ValidationError(
-                f"Stock insuficiente. Disponible: {self.producto.stock_actual}"
-            )
+        VentaService.validar_detalle_venta(self)
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        from .services import VentaService
 
-        self.subtotal = (self.cantidad * self.precio_unitario) - self.descuento
+        self.subtotal = VentaService.calcular_subtotal_detalle(self)
+        self.full_clean()
 
         es_nuevo = self.pk is None
 
         super().save(*args, **kwargs)
 
         if es_nuevo and not self.inventario_descontado:
-            self.producto.stock_actual -= self.cantidad
-            self.producto.save(update_fields=["stock_actual"])
-
-            MovimientoInventario.objects.create(
-                producto=self.producto,
-                tipo="SALIDA",
-                cantidad=self.cantidad,
-                costo_unitario=self.producto.costo_promedio,
-                descripcion=f"Salida por venta {self.venta.numero_comprobante}",
-            )
-
+            VentaService.descontar_inventario_por_venta(self)
             self.inventario_descontado = True
             super().save(update_fields=["inventario_descontado"])
 
-        self.venta.recalcular_totales()
+        VentaService.recalcular_totales_venta(self.venta)
 
     def delete(self, *args, **kwargs):
-        if self.inventario_descontado:
-            self.producto.stock_actual += self.cantidad
-            self.producto.save(update_fields=["stock_actual"])
-
-            MovimientoInventario.objects.create(
-                producto=self.producto,
-                tipo="AJUSTE",
-                cantidad=self.cantidad,
-                costo_unitario=self.producto.costo_promedio,
-                descripcion=f"Reversión de venta {self.venta.numero_comprobante}",
-            )
+        from .services import VentaService
 
         venta = self.venta
+
+        if self.inventario_descontado:
+            VentaService.revertir_inventario_por_venta(self)
+
         super().delete(*args, **kwargs)
-        venta.recalcular_totales()
+        VentaService.recalcular_totales_venta(venta)
 
     def __str__(self):
         return f"{self.producto.nombre} - {self.cantidad}"
