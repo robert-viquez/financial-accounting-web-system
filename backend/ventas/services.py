@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from inventario.models import MovimientoInventario
-
+from decimal import Decimal, ROUND_HALF_UP
 
 class VentaService:
     @staticmethod
@@ -28,14 +28,18 @@ class VentaService:
 
     @staticmethod
     def calcular_subtotal_detalle(detalle):
-        return (detalle.cantidad * detalle.precio_unitario) - detalle.descuento
+        subtotal = (detalle.cantidad * detalle.precio_unitario) - detalle.descuento
+        return subtotal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     @staticmethod
     def recalcular_totales_venta(venta):
         detalles = venta.detalles.all()
         venta.subtotal = sum((detalle.subtotal for detalle in detalles), Decimal("0.00"))
         venta.impuesto = Decimal("0.00")
-        venta.total = venta.subtotal - venta.descuento + venta.impuesto
+        venta.total = (venta.subtotal - venta.descuento + venta.impuesto).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+        )
         venta.save(update_fields=["subtotal", "impuesto", "total"])
 
     @staticmethod
