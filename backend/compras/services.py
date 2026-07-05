@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -22,14 +22,19 @@ class CompraService:
 
     @staticmethod
     def calcular_subtotal_detalle(detalle):
-        return detalle.cantidad * detalle.costo_unitario
+        subtotal = detalle.cantidad * detalle.costo_unitario
+        return subtotal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     @staticmethod
     def recalcular_totales_compra(compra):
         detalles = compra.detalles.all()
         compra.subtotal = sum((detalle.subtotal for detalle in detalles), Decimal("0.00"))
-        compra.impuesto = Decimal("0.00")
-        compra.total = compra.subtotal + compra.impuesto
+        compra.subtotal = compra.subtotal.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        compra.impuesto = Decimal("0.00").quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        compra.total = (compra.subtotal + compra.impuesto).quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP
+        )
         compra.save(update_fields=["subtotal", "impuesto", "total"])
 
     @staticmethod
@@ -49,7 +54,10 @@ class CompraService:
         stock_total = stock_anterior + cantidad_nueva
 
         if stock_total > 0:
-            producto.costo_promedio = (valor_anterior + valor_nuevo) / stock_total
+            producto.costo_promedio = ((valor_anterior + valor_nuevo) / stock_total).quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP
+            )
 
         producto.stock_actual = stock_total
         producto.save(update_fields=["stock_actual", "costo_promedio"])
