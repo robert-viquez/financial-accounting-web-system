@@ -15,3 +15,20 @@ class CompraViewSet(viewsets.ModelViewSet):
     )
     serializer_class = CompraSerializer
     permission_classes = [IsAuthenticated]
+
+    filterset_fields = [
+    "tipo_compra",
+    "estado",
+    "proveedor",
+    ]
+
+    search_fields = [
+        "numero_factura",
+        "proveedor__nombre",
+    ]
+
+    ordering_fields = [
+        "fecha",
+        "total",
+    ]
+    

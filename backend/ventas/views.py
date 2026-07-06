@@ -15,3 +15,19 @@ class VentaViewSet(viewsets.ModelViewSet):
     )
     serializer_class = VentaSerializer
     permission_classes = [IsAuthenticated]
+  
+    filterset_fields = [
+    "tipo_venta",
+    "estado",
+    "cliente",
+    ]
+
+    search_fields = [
+        "numero_comprobante",
+        "cliente__nombre",
+    ]
+
+    ordering_fields = [
+        "fecha",
+        "total",
+    ]

@@ -16,9 +16,34 @@ class CategoriaProductoViewSet(viewsets.ModelViewSet):
 
 
 class ProductoViewSet(viewsets.ModelViewSet):
-    queryset = Producto.objects.select_related("categoria").all().order_by("nombre")
+    queryset = (
+        Producto.objects
+        .select_related("categoria")
+        .all()
+        .order_by("nombre")
+    )
+
     serializer_class = ProductoSerializer
     permission_classes = [IsAuthenticated]
+
+    filterset_fields = [
+        "categoria",
+        "estado",
+    ]
+
+    search_fields = [
+        "codigo",
+        "nombre",
+        "descripcion",
+    ]
+
+    ordering_fields = [
+        "codigo",
+        "nombre",
+        "precio_venta",
+        "stock_actual",
+        "costo_promedio",
+    ]
 
 
 class MovimientoInventarioViewSet(viewsets.ReadOnlyModelViewSet):
