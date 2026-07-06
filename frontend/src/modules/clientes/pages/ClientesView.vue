@@ -8,7 +8,7 @@ import {
   createCliente,
   updateCliente,
   deleteCliente,
-} from "@/modules/clientes/api/clientesServices";
+} from "@/modules/clientes/api/ClientesServices";
 
 const clientes = ref([]);
 const loading = ref(false);
