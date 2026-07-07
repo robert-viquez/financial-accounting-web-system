@@ -2,6 +2,7 @@
 import { ref, onMounted, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 
 import ProductoDialog from "../components/ProductoDialog.vue";
@@ -75,7 +76,8 @@ async function cargarProductos() {
 
 async function cargarCategorias() {
   try {
-    categorias.value = await getCategorias();
+    const response = await getCategorias();
+    categorias.value = response.results ?? response;
   } catch (error) {
     mostrarMensaje("No se pudieron cargar las categorías.", "error");
   }
@@ -152,17 +154,11 @@ onMounted(async () => {
     />
 
     <v-card>
-      <v-card-text>
-        <v-text-field
-          v-model="search"
-          prepend-inner-icon="mdi-magnify"
-          label="Buscar producto"
-          variant="outlined"
-          density="compact"
-          clearable
-          hide-details
-        />
-      </v-card-text>
+      <SearchToolbar
+        v-model="search"
+        label="Buscar producto"
+        @search="cargarProductos"
+      />
 
       <v-data-table
         :headers="headers"
@@ -222,11 +218,7 @@ onMounted(async () => {
       @confirm="confirmarEliminarProducto"
     />
 
-    <v-snackbar
-      v-model="snackbar"
-      :color="snackbarColor"
-      timeout="3000"
-    >
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
   </section>

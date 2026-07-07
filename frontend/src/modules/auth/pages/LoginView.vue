@@ -51,19 +51,20 @@ async function handleLogin() {
 
 <style scoped>
 .login-page {
-  min-height: 100vh;
-  display: flex;
   align-items: center;
-  justify-content: center;
   background: #f5f6f8;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 16px;
 }
 
 .login-card {
-  width: 360px;
-  padding: 32px;
   background: white;
-  border-radius: 16px;
+  border-radius: 8px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  width: min(100%, 420px);
 }
 
 h1 {
@@ -71,8 +72,8 @@ h1 {
 }
 
 p {
-  margin-bottom: 24px;
   color: #666;
+  margin-bottom: 24px;
 }
 
 form {
@@ -82,19 +83,21 @@ form {
 }
 
 input {
-  padding: 10px 12px;
   border: 1px solid #ccc;
   border-radius: 8px;
+  padding: 10px 12px;
+  width: 100%;
 }
 
 button {
-  margin-top: 12px;
-  padding: 11px;
+  background: #1f2937;
   border: none;
   border-radius: 8px;
-  background: #1f2937;
   color: white;
   cursor: pointer;
+  margin-top: 12px;
+  padding: 11px;
+  width: 100%;
 }
 
 button:disabled {
@@ -104,5 +107,15 @@ button:disabled {
 .error {
   color: #b91c1c;
   margin-top: 8px;
+}
+
+@media (min-width: 600px) {
+  .login-page {
+    padding: 24px;
+  }
+
+  .login-card {
+    padding: 32px;
+  }
 }
 </style>

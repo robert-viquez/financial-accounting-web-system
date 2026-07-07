@@ -14,7 +14,7 @@ const emit = defineEmits(["search"]);
 <template>
   <v-card-title>
     <v-row align="center">
-      <v-col cols="12" md="4">
+      <v-col cols="12" sm="8" md="5" lg="4">
         <v-text-field
           v-model="model"
           :label="label"
@@ -28,11 +28,23 @@ const emit = defineEmits(["search"]);
         />
       </v-col>
 
-      <v-col cols="auto">
-        <v-btn variant="tonal" @click="emit('search')">
+      <v-col cols="12" sm="auto">
+        <v-btn class="search-button" variant="tonal" @click="emit('search')">
           Buscar
         </v-btn>
       </v-col>
     </v-row>
   </v-card-title>
 </template>
+
+<style scoped>
+.search-button {
+  width: 100%;
+}
+
+@media (min-width: 600px) {
+  .search-button {
+    width: auto;
+  }
+}
+</style>

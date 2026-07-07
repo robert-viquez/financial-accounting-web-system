@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import CompraDialog from "../components/CompraDialog.vue";
 
@@ -149,19 +150,11 @@ onMounted(async () => {
     />
 
     <v-card>
-      <v-card-text>
-        <v-text-field
-          v-model="search"
-          label="Buscar compra"
-          prepend-inner-icon="mdi-magnify"
-          variant="outlined"
-          density="compact"
-          clearable
-          hide-details
-          @keyup.enter="cargarCompras"
-          @click:clear="cargarCompras"
-        />
-      </v-card-text>
+      <SearchToolbar
+        v-model="search"
+        label="Buscar compra"
+        @search="cargarCompras"
+      />
 
       <v-data-table
         :headers="headers"

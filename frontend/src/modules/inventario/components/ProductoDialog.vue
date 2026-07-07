@@ -53,8 +53,7 @@ const form = reactive({
 const rules = {
   required: (value) => !!value || "Este campo es obligatorio",
   positive: (value) => Number(value) > 0 || "Debe ser mayor que cero",
-  zeroOrPositive: (value) =>
-    Number(value) >= 0 || "No puede ser negativo",
+  zeroOrPositive: (value) => Number(value) >= 0 || "No puede ser negativo",
   salePrice: (value) =>
     Number(value) >= Number(form.costo_promedio) ||
     "El precio de venta debe ser mayor o igual al costo promedio",
@@ -101,7 +100,7 @@ async function guardar() {
   >
     <v-form ref="formRef">
       <v-row>
-        <v-col cols="12" md="6">
+        <v-col cols="12" sm="6">
           <v-text-field
             v-model="form.codigo"
             label="Código"
@@ -111,7 +110,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="6">
+        <v-col cols="12" sm="6">
           <v-text-field
             v-model="form.nombre"
             label="Nombre"
@@ -131,7 +130,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="6">
+        <v-col cols="12" sm="6">
           <v-select
             v-model="form.categoria"
             :items="categorias"
@@ -144,7 +143,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="6">
+        <v-col cols="12" sm="6">
           <v-select
             v-model="form.unidad_medida"
             :items="[
@@ -159,7 +158,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="4">
+        <v-col cols="12" sm="4">
           <v-text-field
             v-model.number="form.costo_promedio"
             label="Costo promedio"
@@ -171,7 +170,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="4">
+        <v-col cols="12" sm="4">
           <v-text-field
             v-model.number="form.precio_venta"
             label="Precio venta"
@@ -183,7 +182,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="4">
+        <v-col cols="12" sm="4">
           <v-text-field
             v-model.number="form.stock_minimo"
             label="Stock mínimo"
