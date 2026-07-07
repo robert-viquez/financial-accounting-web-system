@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, watch } from "vue";
 
+import PageHeader from "@/components/common/PageHeader.vue";
+import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+
 import ProductoDialog from "../components/ProductoDialog.vue";
 import StockChip from "../components/StockChip.vue";
 
@@ -15,86 +18,123 @@ import { getCategorias } from "../api/CategoriasServices";
 
 const productos = ref([]);
 const categorias = ref([]);
-
 const loading = ref(false);
 
 const dialog = ref(false);
-
+const confirmDialog = ref(false);
 const editing = ref(false);
 
 const selected = ref({});
+const productoAEliminar = ref(null);
 
 const search = ref("");
+
+const snackbar = ref(false);
+const snackbarText = ref("");
+const snackbarColor = ref("success");
 
 const headers = [
   { title: "Código", key: "codigo" },
   { title: "Nombre", key: "nombre" },
   { title: "Categoría", key: "categoria_nombre" },
-  { title: "Stock", key: "stock" },
+  { title: "Stock", key: "stock_actual" },
   { title: "Precio", key: "precio_venta" },
   { title: "Estado", key: "estado" },
   { title: "Acciones", key: "actions", sortable: false },
 ];
+
+function mostrarMensaje(texto, color = "success") {
+  snackbarText.value = texto;
+  snackbarColor.value = color;
+  snackbar.value = true;
+}
+
+function formatoCRC(valor) {
+  return new Intl.NumberFormat("es-CR", {
+    style: "currency",
+    currency: "CRC",
+  }).format(Number(valor || 0));
+}
 
 async function cargarProductos() {
   loading.value = true;
 
   try {
     const response = await getProductos({
-      search: search.value,
+      search: search.value || undefined,
       ordering: "nombre",
     });
 
-    console.log("Respuesta API:", response);
-
     productos.value = response.results ?? response;
-
-    console.log("Productos:", productos.value);
+  } catch (error) {
+    mostrarMensaje("No se pudieron cargar los productos.", "error");
   } finally {
     loading.value = false;
   }
 }
 
 async function cargarCategorias() {
-  categorias.value = await getCategorias();
+  try {
+    categorias.value = await getCategorias();
+  } catch (error) {
+    mostrarMensaje("No se pudieron cargar las categorías.", "error");
+  }
 }
 
 function nuevoProducto() {
   editing.value = false;
-
   selected.value = {};
   dialog.value = true;
 }
 
 function editarProducto(item) {
   editing.value = true;
-
   selected.value = { ...item };
-
   dialog.value = true;
 }
 
 async function guardarProducto(data) {
-  if (editing.value) {
-    await updateProducto(selected.value.id, data);
-  } else {
-    await createProducto(data);
+  try {
+    if (editing.value) {
+      await updateProducto(selected.value.id, data);
+      mostrarMensaje("Producto actualizado correctamente.");
+    } else {
+      await createProducto(data);
+      mostrarMensaje("Producto creado correctamente.");
+    }
+
+    dialog.value = false;
+    await cargarProductos();
+  } catch (error) {
+    mostrarMensaje("No se pudo guardar el producto.", "error");
   }
-
-  dialog.value = false;
-
-  await cargarProductos();
 }
 
-async function eliminarProducto(item) {
-  if (!confirm(`¿Eliminar ${item.nombre}?`)) return;
-
-  await deleteProducto(item.id);
-
-  await cargarProductos();
+function pedirEliminarProducto(item) {
+  productoAEliminar.value = item;
+  confirmDialog.value = true;
 }
 
-watch(search, cargarProductos);
+async function confirmarEliminarProducto() {
+  if (!productoAEliminar.value) return;
+
+  try {
+    await deleteProducto(productoAEliminar.value.id);
+
+    mostrarMensaje("Producto eliminado correctamente.");
+
+    confirmDialog.value = false;
+    productoAEliminar.value = null;
+
+    await cargarProductos();
+  } catch (error) {
+    mostrarMensaje("No se pudo eliminar el producto.", "error");
+  }
+}
+
+watch(search, () => {
+  cargarProductos();
+});
 
 onMounted(async () => {
   await cargarCategorias();
@@ -103,88 +143,68 @@ onMounted(async () => {
 </script>
 
 <template>
-  <v-container fluid>
-
-    <v-row class="mb-4">
-
-      <v-col>
-
-        <h2>Inventario</h2>
-
-      </v-col>
-
-      <v-col class="text-right">
-
-        <v-btn
-          color="primary"
-          prepend-icon="mdi-plus"
-          @click="nuevoProducto"
-        >
-          Nuevo Producto
-        </v-btn>
-
-      </v-col>
-
-    </v-row>
+  <section>
+    <PageHeader
+      title="Productos"
+      subtitle="Administración del catálogo de productos e inventario."
+      button-text="Nuevo producto"
+      @click="nuevoProducto"
+    />
 
     <v-card>
-
       <v-card-text>
-
         <v-text-field
           v-model="search"
           prepend-inner-icon="mdi-magnify"
-          label="Buscar producto..."
+          label="Buscar producto"
           variant="outlined"
-          density="comfortable"
+          density="compact"
+          clearable
+          hide-details
         />
-
       </v-card-text>
 
       <v-data-table
         :headers="headers"
         :items="productos"
         :loading="loading"
+        item-value="id"
       >
-
-        <template #item.stock="{ item }">
-          <StockChip :stock="item.stock" />
+        <template #item.stock_actual="{ item }">
+          <StockChip :stock="Number(item.stock_actual)" />
         </template>
 
         <template #item.precio_venta="{ item }">
-          ₡ {{ Number(item.precio_venta).toLocaleString() }}
+          {{ formatoCRC(item.precio_venta) }}
         </template>
 
         <template #item.estado="{ item }">
-
           <v-chip
             :color="item.estado ? 'green' : 'grey'"
             variant="tonal"
+            size="small"
           >
             {{ item.estado ? "Activo" : "Inactivo" }}
           </v-chip>
-
         </template>
 
         <template #item.actions="{ item }">
-
           <v-btn
             icon="mdi-pencil"
             variant="text"
+            size="small"
             @click="editarProducto(item)"
           />
 
           <v-btn
             icon="mdi-delete"
-            color="red"
+            color="error"
             variant="text"
-            @click="eliminarProducto(item)"
+            size="small"
+            @click="pedirEliminarProducto(item)"
           />
-
         </template>
-
       </v-data-table>
-
     </v-card>
 
     <ProductoDialog
@@ -195,5 +215,19 @@ onMounted(async () => {
       @save="guardarProducto"
     />
 
-  </v-container>
+    <ConfirmDialog
+      v-model="confirmDialog"
+      title="Eliminar producto"
+      :message="`¿Desea eliminar el producto ${productoAEliminar?.nombre || ''}?`"
+      @confirm="confirmarEliminarProducto"
+    />
+
+    <v-snackbar
+      v-model="snackbar"
+      :color="snackbarColor"
+      timeout="3000"
+    >
+      {{ snackbarText }}
+    </v-snackbar>
+  </section>
 </template>
