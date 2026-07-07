@@ -2,14 +2,11 @@
 import { onMounted, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import VentaDialog from "../components/VentaDialog.vue";
 
-import {
-  getVentas,
-  createVenta,
-  deleteVenta,
-} from "../api/VentasServices";
+import { createVenta, deleteVenta, getVentas } from "../api/ventasService";
 
 import { getClientes } from "@/modules/clientes/api/ClientesServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
@@ -50,6 +47,38 @@ function mostrarMensaje(texto, color = "success") {
   snackbar.value = true;
 }
 
+function obtenerMensajeError(error, fallback) {
+  const data = error?.response?.data;
+
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (Array.isArray(data)) {
+    return data.map((item) => obtenerTextoError(item)).join(" ");
+  }
+  if (data.detail) return data.detail;
+  if (data.non_field_errors) {
+    return data.non_field_errors.map((item) => obtenerTextoError(item)).join(" ");
+  }
+
+  const firstFieldError = Object.values(data).flat().find(Boolean);
+  return firstFieldError ? obtenerTextoError(firstFieldError) : fallback;
+}
+
+function obtenerTextoError(value) {
+  if (!value) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((item) => obtenerTextoError(item)).join(" ");
+  if (typeof value === "object") {
+    return Object.values(value)
+      .flat()
+      .map((item) => obtenerTextoError(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  return String(value);
+}
+
 function formatoCRC(valor) {
   return new Intl.NumberFormat("es-CR", {
     style: "currency",
@@ -60,6 +89,27 @@ function formatoCRC(valor) {
 function formatoFecha(fecha) {
   if (!fecha) return "";
   return new Date(fecha).toLocaleString("es-CR");
+}
+
+function etiquetaTipoVenta(tipo) {
+  return tipo === "CREDITO" ? "Crédito" : "Contado";
+}
+
+function colorTipoVenta(tipo) {
+  return tipo === "CREDITO" ? "orange" : "green";
+}
+
+function etiquetaEstado(estado) {
+  const estados = {
+    EMITIDA: "Emitida",
+    ANULADA: "Anulada",
+  };
+
+  return estados[estado] || estado;
+}
+
+function colorEstado(estado) {
+  return estado === "EMITIDA" ? "green" : "grey";
 }
 
 async function cargarVentas() {
@@ -73,7 +123,10 @@ async function cargarVentas() {
 
     ventas.value = response.results ?? response;
   } catch (error) {
-    mostrarMensaje("No se pudieron cargar las ventas.", "error");
+    mostrarMensaje(
+      obtenerMensajeError(error, "No se pudieron cargar las ventas."),
+      "error"
+    );
   } finally {
     loading.value = false;
   }
@@ -89,7 +142,10 @@ async function cargarCatalogos() {
     productos.value = productosResponse.results ?? productosResponse;
     mediosPago.value = mediosPagoResponse.results ?? mediosPagoResponse;
   } catch (error) {
-    mostrarMensaje("No se pudieron cargar los catálogos.", "error");
+    mostrarMensaje(
+      obtenerMensajeError(error, "No se pudieron cargar los catálogos."),
+      "error"
+    );
   }
 }
 
@@ -105,12 +161,20 @@ async function guardarVenta(data) {
 
     dialog.value = false;
 
-    mostrarMensaje("Venta registrada correctamente.");
+    const mensaje =
+      data.tipo_venta === "CREDITO"
+        ? "Venta a crédito registrada. Se creó la cuenta por cobrar automáticamente."
+        : "Venta registrada correctamente. El inventario fue actualizado.";
 
-    await cargarVentas();
+    mostrarMensaje(mensaje);
+
+    await Promise.all([cargarCatalogos(), cargarVentas()]);
   } catch (error) {
     console.error(error.response?.data || error);
-    mostrarMensaje("No se pudo registrar la venta.", "error");
+    mostrarMensaje(
+      obtenerMensajeError(error, "No se pudo registrar la venta."),
+      "error"
+    );
   } finally {
     saving.value = false;
   }
@@ -132,9 +196,12 @@ async function confirmarEliminarVenta() {
     confirmDialog.value = false;
     ventaAEliminar.value = null;
 
-    await cargarVentas();
+    await Promise.all([cargarCatalogos(), cargarVentas()]);
   } catch (error) {
-    mostrarMensaje("No se pudo eliminar la venta.", "error");
+    mostrarMensaje(
+      obtenerMensajeError(error, "No se pudo eliminar la venta."),
+      "error"
+    );
   }
 }
 
@@ -154,19 +221,11 @@ onMounted(async () => {
     />
 
     <v-card>
-      <v-card-text>
-        <v-text-field
-          v-model="search"
-          label="Buscar venta"
-          prepend-inner-icon="mdi-magnify"
-          variant="outlined"
-          density="compact"
-          clearable
-          hide-details
-          @keyup.enter="cargarVentas"
-          @click:clear="cargarVentas"
-        />
-      </v-card-text>
+      <SearchToolbar
+        v-model="search"
+        label="Buscar por comprobante o cliente"
+        @search="cargarVentas"
+      />
 
       <v-data-table
         :headers="headers"
@@ -174,13 +233,21 @@ onMounted(async () => {
         :loading="loading"
         item-value="id"
       >
+        <template #item.cliente_nombre="{ item }">
+          {{ item.cliente_nombre || "Consumidor final" }}
+        </template>
+
+        <template #item.medio_pago_nombre="{ item }">
+          {{ item.medio_pago_nombre || "-" }}
+        </template>
+
         <template #item.tipo_venta="{ item }">
           <v-chip
-            :color="item.tipo_venta === 'CREDITO' ? 'orange' : 'green'"
+            :color="colorTipoVenta(item.tipo_venta)"
             variant="tonal"
             size="small"
           >
-            {{ item.tipo_venta === "CREDITO" ? "Crédito" : "Contado" }}
+            {{ etiquetaTipoVenta(item.tipo_venta) }}
           </v-chip>
         </template>
 
@@ -190,11 +257,11 @@ onMounted(async () => {
 
         <template #item.estado="{ item }">
           <v-chip
-            :color="item.estado === 'EMITIDA' ? 'green' : 'grey'"
+            :color="colorEstado(item.estado)"
             variant="tonal"
             size="small"
           >
-            {{ item.estado }}
+            {{ etiquetaEstado(item.estado) }}
           </v-chip>
         </template>
 
@@ -221,6 +288,7 @@ onMounted(async () => {
       :medios-pago="mediosPago"
       :loading="saving"
       @save="guardarVenta"
+      @validation-error="mostrarMensaje($event, 'error')"
     />
 
     <ConfirmDialog
@@ -230,11 +298,7 @@ onMounted(async () => {
       @confirm="confirmarEliminarVenta"
     />
 
-    <v-snackbar
-      v-model="snackbar"
-      :color="snackbarColor"
-      timeout="3000"
-    >
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
   </section>

@@ -19,9 +19,10 @@ const props = defineProps({
   loading: Boolean,
 });
 
-const emit = defineEmits(["update:modelValue", "save"]);
+const emit = defineEmits(["update:modelValue", "save", "validation-error"]);
 
 const formRef = ref(null);
+const errorMessage = ref("");
 
 const dialog = computed({
   get: () => props.modelValue,
@@ -44,14 +45,12 @@ const rules = {
   zeroOrPositive: (value) => Number(value) >= 0 || "No puede ser negativo",
 };
 
-const total = computed(() =>
-  form.detalles.reduce((sum, item) => {
-    const subtotal =
-      Number(item.cantidad || 0) * Number(item.precio_unitario || 0) -
-      Number(item.descuento || 0);
+const subtotalDetalles = computed(() =>
+  form.detalles.reduce((sum, item) => sum + getSubtotal(item), 0)
+);
 
-    return sum + subtotal;
-  }, 0) - Number(form.descuento || 0)
+const total = computed(
+  () => subtotalDetalles.value - Number(form.descuento || 0)
 );
 
 watch(
@@ -62,6 +61,7 @@ watch(
 );
 
 function resetForm() {
+  errorMessage.value = "";
   form.cliente = null;
   form.medio_pago = null;
   form.numero_comprobante = "";
@@ -96,12 +96,26 @@ function productoSeleccionado(productoId) {
   return props.productos.find((producto) => producto.id === productoId);
 }
 
+function stockDisponible(productoId) {
+  return Number(productoSeleccionado(productoId)?.stock_actual || 0);
+}
+
+function stockSolicitado(productoId) {
+  if (!productoId) return 0;
+
+  return form.detalles
+    .filter((detalle) => detalle.producto === productoId)
+    .reduce((sum, detalle) => sum + Number(detalle.cantidad || 0), 0);
+}
+
+function stockExcedido(detalle) {
+  if (!detalle.producto) return false;
+  return stockSolicitado(detalle.producto) > stockDisponible(detalle.producto);
+}
+
 function setPrecioProducto(detalle) {
   const producto = productoSeleccionado(detalle.producto);
-
-  if (producto) {
-    detalle.precio_unitario = Number(producto.precio_venta || 0);
-  }
+  detalle.precio_unitario = producto ? Number(producto.precio_venta || 0) : 0;
 }
 
 function getSubtotal(detalle) {
@@ -118,7 +132,65 @@ function formatoCRC(valor) {
   }).format(Number(valor || 0));
 }
 
+function mostrarErrorValidacion(mensaje) {
+  errorMessage.value = mensaje;
+  emit("validation-error", mensaje);
+}
+
+function validarDescuentos() {
+  for (const detalle of form.detalles) {
+    const bruto =
+      Number(detalle.cantidad || 0) * Number(detalle.precio_unitario || 0);
+
+    if (Number(detalle.descuento || 0) > bruto) {
+      mostrarErrorValidacion(
+        "El descuento de una línea no puede ser mayor que su subtotal bruto."
+      );
+      return false;
+    }
+  }
+
+  if (Number(form.descuento || 0) > subtotalDetalles.value) {
+    mostrarErrorValidacion(
+      "El descuento general no puede ser mayor que el subtotal."
+    );
+    return false;
+  }
+
+  return true;
+}
+
+function validarStockDisponible() {
+  const cantidadesPorProducto = new Map();
+
+  for (const detalle of form.detalles) {
+    if (!detalle.producto) continue;
+
+    cantidadesPorProducto.set(
+      detalle.producto,
+      (cantidadesPorProducto.get(detalle.producto) || 0) +
+        Number(detalle.cantidad || 0)
+    );
+  }
+
+  for (const [productoId, cantidad] of cantidadesPorProducto.entries()) {
+    const producto = productoSeleccionado(productoId);
+    const disponible = Number(producto?.stock_actual || 0);
+
+    if (cantidad > disponible) {
+      mostrarErrorValidacion(
+        `Stock insuficiente para ${producto?.nombre || "el producto"}. Disponible: ${disponible}. Solicitado: ${cantidad}.`
+      );
+      return false;
+    }
+  }
+
+  return true;
+}
+
 async function guardar() {
+  errorMessage.value = "";
+
   const { valid } = await formRef.value.validate();
 
   if (!valid) return;
@@ -131,7 +203,13 @@ async function guardar() {
       Number(detalle.descuento || 0) >= 0
   );
 
-  if (!detallesValidos) return;
+  if (!detallesValidos) {
+    mostrarErrorValidacion("Complete correctamente el detalle de la venta.");
+    return;
+  }
+
+  if (!validarDescuentos()) return;
+  if (!validarStockDisponible()) return;
 
   emit("save", {
     cliente: form.cliente,
@@ -159,6 +237,16 @@ async function guardar() {
     @save="guardar"
   >
     <v-form ref="formRef">
+      <v-alert
+        v-if="errorMessage"
+        class="mb-4"
+        type="error"
+        variant="tonal"
+        density="compact"
+      >
+        {{ errorMessage }}
+      </v-alert>
+
       <v-row>
         <v-col cols="12" md="3">
           <v-select
@@ -281,7 +369,15 @@ async function guardar() {
             </td>
 
             <td>
-              {{ productoSeleccionado(detalle.producto)?.stock_actual ?? "-" }}
+              <v-chip
+                v-if="detalle.producto"
+                :color="stockExcedido(detalle) ? 'error' : 'success'"
+                variant="tonal"
+                size="small"
+              >
+                {{ stockDisponible(detalle.producto) }}
+              </v-chip>
+              <span v-else>-</span>
             </td>
 
             <td>
@@ -340,9 +436,7 @@ async function guardar() {
       <v-divider class="my-4" />
 
       <div class="d-flex justify-end">
-        <h2 class="text-h6">
-          Total: {{ formatoCRC(total) }}
-        </h2>
+        <h2 class="text-h6">Total: {{ formatoCRC(total) }}</h2>
       </div>
     </v-form>
   </BaseCrudDialog>
