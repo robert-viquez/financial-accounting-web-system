@@ -1,46 +1,52 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import CompraDialog from "../components/CompraDialog.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
+import { useServerTable } from "@/composables/useServerTable";
 
-import {
-  getCompras,
-  createCompra,
-  deleteCompra,
-} from "../api/ComprasServices";
-
+import { getCompras, createCompra, deleteCompra } from "../api/ComprasServices";
 import { getProveedores } from "@/modules/proveedores/api/ProveedoresServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 
 const compras = ref([]);
+const totalItems = ref(0);
 const proveedores = ref([]);
 const productos = ref([]);
-
 const loading = ref(false);
 const saving = ref(false);
-
 const dialog = ref(false);
 const confirmDialog = ref(false);
 const compraAEliminar = ref(null);
-
-const search = ref("");
-
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 
+const { filters } = usePersistentFilters("compras_filters", {
+  search: "",
+});
+const { options, serverParams, updateOptions } = useServerTable({
+  ordering: "-fecha",
+});
+
 const headers = [
-  { title: "Factura", key: "numero_factura" },
-  { title: "Proveedor", key: "proveedor_nombre" },
-  { title: "Tipo", key: "tipo_compra" },
+  { title: "Factura", key: "numero_factura", sortable: false },
+  { title: "Proveedor", key: "proveedor_nombre", sortable: false },
+  { title: "Tipo", key: "tipo_compra", sortable: false },
   { title: "Total", key: "total" },
-  { title: "Estado", key: "estado" },
+  { title: "Estado", key: "estado", sortable: false },
   { title: "Fecha", key: "fecha" },
   { title: "Acciones", key: "actions", sortable: false },
 ];
+
+const debouncedLoad = useDebounce(() => {
+  options.page = 1;
+  cargarCompras();
+});
 
 function mostrarMensaje(texto, color = "success") {
   snackbarText.value = texto;
@@ -65,16 +71,22 @@ async function cargarCompras() {
 
   try {
     const response = await getCompras({
-      search: search.value || undefined,
-      ordering: "-fecha",
+      ...serverParams.value,
+      search: filters.search || undefined,
     });
 
     compras.value = response.results ?? response;
+    totalItems.value = response.count ?? compras.value.length;
   } catch (error) {
     mostrarMensaje("No se pudieron cargar las compras.", "error");
   } finally {
     loading.value = false;
   }
+}
+
+function onTableOptions(value) {
+  updateOptions(value);
+  cargarCompras();
 }
 
 async function cargarCatalogos() {
@@ -98,11 +110,8 @@ async function guardarCompra(data) {
 
   try {
     await createCompra(data);
-
     dialog.value = false;
-
     mostrarMensaje("Compra registrada correctamente.");
-
     await cargarCompras();
   } catch (error) {
     console.error(error.response?.data || error);
@@ -122,17 +131,16 @@ async function confirmarEliminarCompra() {
 
   try {
     await deleteCompra(compraAEliminar.value.id);
-
     mostrarMensaje("Compra eliminada correctamente.");
-
     confirmDialog.value = false;
     compraAEliminar.value = null;
-
     await cargarCompras();
   } catch (error) {
     mostrarMensaje("No se pudo eliminar la compra.", "error");
   }
 }
+
+watch(() => filters.search, debouncedLoad);
 
 onMounted(async () => {
   await cargarCatalogos();
@@ -151,16 +159,26 @@ onMounted(async () => {
 
     <v-card>
       <SearchToolbar
-        v-model="search"
+        v-model="filters.search"
         label="Buscar compra"
         @search="cargarCompras"
       />
 
-      <v-data-table
+      <v-skeleton-loader
+        v-if="loading && !compras.length"
+        type="table"
+        class="mx-4 mb-4"
+      />
+
+      <v-data-table-server
+        v-else
         :headers="headers"
         :items="compras"
+        :items-length="totalItems"
         :loading="loading"
+        :items-per-page="options.itemsPerPage"
         item-value="id"
+        @update:options="onTableOptions"
       >
         <template #item.tipo_compra="{ item }">
           <v-chip
@@ -199,7 +217,7 @@ onMounted(async () => {
             @click="pedirEliminarCompra(item)"
           />
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <CompraDialog
@@ -217,11 +235,7 @@ onMounted(async () => {
       @confirm="confirmarEliminarCompra"
     />
 
-    <v-snackbar
-      v-model="snackbar"
-      :color="snackbarColor"
-      timeout="3000"
-    >
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
   </section>

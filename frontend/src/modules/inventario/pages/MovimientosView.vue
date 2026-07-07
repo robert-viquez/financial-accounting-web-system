@@ -1,7 +1,9 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
 import { getMovimientos } from "@/modules/inventario/api/MovimientosServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 
@@ -11,12 +13,13 @@ const loading = ref(false);
 const snackbar = ref(false);
 const snackbarText = ref("");
 
-const filters = reactive({
+const { filters, resetFilters } = usePersistentFilters("movimientos_filters", {
   producto: null,
   tipo: null,
   fecha_desde: "",
   fecha_hasta: "",
 });
+const debouncedLoad = useDebounce(cargarMovimientos);
 
 const headers = [
   { title: "Fecha", key: "fecha" },
@@ -85,12 +88,11 @@ async function cargarProductos() {
 }
 
 function limpiarFiltros() {
-  filters.producto = null;
-  filters.tipo = null;
-  filters.fecha_desde = "";
-  filters.fecha_hasta = "";
+  resetFilters();
   cargarMovimientos();
 }
+
+watch(filters, debouncedLoad, { deep: true });
 
 onMounted(async () => {
   await Promise.all([cargarProductos(), cargarMovimientos()]);

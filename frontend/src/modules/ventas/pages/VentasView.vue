@@ -1,45 +1,55 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import VentaDialog from "../components/VentaDialog.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
+import { useServerTable } from "@/composables/useServerTable";
 
 import { createVenta, deleteVenta, getVentas } from "../api/ventasService";
-
 import { getClientes } from "@/modules/clientes/api/ClientesServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 import { getMediosPago } from "@/modules/terceros/api/MediosPagoServices";
 
 const ventas = ref([]);
+const totalItems = ref(0);
 const clientes = ref([]);
 const productos = ref([]);
 const mediosPago = ref([]);
-
 const loading = ref(false);
 const saving = ref(false);
-
 const dialog = ref(false);
 const confirmDialog = ref(false);
 const ventaAEliminar = ref(null);
-
-const search = ref("");
-
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 
+const { filters } = usePersistentFilters("ventas_filters", {
+  search: "",
+});
+const { options, serverParams, updateOptions } = useServerTable({
+  ordering: "-fecha",
+});
+
 const headers = [
-  { title: "Comprobante", key: "numero_comprobante" },
-  { title: "Cliente", key: "cliente_nombre" },
-  { title: "Tipo", key: "tipo_venta" },
-  { title: "Medio pago", key: "medio_pago_nombre" },
+  { title: "Comprobante", key: "numero_comprobante", sortable: false },
+  { title: "Cliente", key: "cliente_nombre", sortable: false },
+  { title: "Tipo", key: "tipo_venta", sortable: false },
+  { title: "Medio pago", key: "medio_pago_nombre", sortable: false },
   { title: "Total", key: "total" },
-  { title: "Estado", key: "estado" },
+  { title: "Estado", key: "estado", sortable: false },
   { title: "Fecha", key: "fecha" },
   { title: "Acciones", key: "actions", sortable: false },
 ];
+
+const debouncedLoad = useDebounce(() => {
+  options.page = 1;
+  cargarVentas();
+});
 
 function mostrarMensaje(texto, color = "success") {
   snackbarText.value = texto;
@@ -117,11 +127,12 @@ async function cargarVentas() {
 
   try {
     const response = await getVentas({
-      search: search.value || undefined,
-      ordering: "-fecha",
+      ...serverParams.value,
+      search: filters.search || undefined,
     });
 
     ventas.value = response.results ?? response;
+    totalItems.value = response.count ?? ventas.value.length;
   } catch (error) {
     mostrarMensaje(
       obtenerMensajeError(error, "No se pudieron cargar las ventas."),
@@ -130,6 +141,11 @@ async function cargarVentas() {
   } finally {
     loading.value = false;
   }
+}
+
+function onTableOptions(value) {
+  updateOptions(value);
+  cargarVentas();
 }
 
 async function cargarCatalogos() {
@@ -158,7 +174,6 @@ async function guardarVenta(data) {
 
   try {
     await createVenta(data);
-
     dialog.value = false;
 
     const mensaje =
@@ -167,7 +182,6 @@ async function guardarVenta(data) {
         : "Venta registrada correctamente. El inventario fue actualizado.";
 
     mostrarMensaje(mensaje);
-
     await Promise.all([cargarCatalogos(), cargarVentas()]);
   } catch (error) {
     console.error(error.response?.data || error);
@@ -190,12 +204,9 @@ async function confirmarEliminarVenta() {
 
   try {
     await deleteVenta(ventaAEliminar.value.id);
-
     mostrarMensaje("Venta eliminada correctamente.");
-
     confirmDialog.value = false;
     ventaAEliminar.value = null;
-
     await Promise.all([cargarCatalogos(), cargarVentas()]);
   } catch (error) {
     mostrarMensaje(
@@ -204,6 +215,8 @@ async function confirmarEliminarVenta() {
     );
   }
 }
+
+watch(() => filters.search, debouncedLoad);
 
 onMounted(async () => {
   await cargarCatalogos();
@@ -222,16 +235,26 @@ onMounted(async () => {
 
     <v-card>
       <SearchToolbar
-        v-model="search"
+        v-model="filters.search"
         label="Buscar por comprobante o cliente"
         @search="cargarVentas"
       />
 
-      <v-data-table
+      <v-skeleton-loader
+        v-if="loading && !ventas.length"
+        type="table"
+        class="mx-4 mb-4"
+      />
+
+      <v-data-table-server
+        v-else
         :headers="headers"
         :items="ventas"
+        :items-length="totalItems"
         :loading="loading"
+        :items-per-page="options.itemsPerPage"
         item-value="id"
+        @update:options="onTableOptions"
       >
         <template #item.cliente_nombre="{ item }">
           {{ item.cliente_nombre || "Consumidor final" }}
@@ -278,7 +301,7 @@ onMounted(async () => {
             @click="pedirEliminarVenta(item)"
           />
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <VentaDialog

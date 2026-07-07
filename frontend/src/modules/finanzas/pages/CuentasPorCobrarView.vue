@@ -1,8 +1,10 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
 import {
   createPagoCliente,
   deleteCuentaPorCobrar,
@@ -24,10 +26,11 @@ const pagoDialog = ref(false);
 const historialDialog = ref(false);
 const cuentaSeleccionada = ref(null);
 
-const filters = reactive({
+const { filters } = usePersistentFilters("cuentas_cobrar_filters", {
   search: "",
   estado: null,
 });
+const debouncedLoad = useDebounce(cargarCuentas);
 
 const pagoForm = reactive({
   medio_pago: null,
@@ -211,6 +214,8 @@ async function confirmarEliminar() {
     mostrarMensaje("No se pudo eliminar la cuenta.", "error");
   }
 }
+
+watch(() => [filters.search, filters.estado], debouncedLoad);
 
 onMounted(async () => {
   await Promise.all([cargarCuentas(), cargarCatalogos()]);

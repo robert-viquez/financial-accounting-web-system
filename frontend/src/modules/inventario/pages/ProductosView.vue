@@ -4,6 +4,9 @@ import { ref, onMounted, watch } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
+import { useServerTable } from "@/composables/useServerTable";
 
 import ProductoDialog from "../components/ProductoDialog.vue";
 import StockChip from "../components/StockChip.vue";
@@ -14,35 +17,42 @@ import {
   updateProducto,
   deleteProducto,
 } from "../api/ProductosServices";
-
 import { getCategorias } from "../api/CategoriasServices";
 
 const productos = ref([]);
+const totalItems = ref(0);
 const categorias = ref([]);
 const loading = ref(false);
-
 const dialog = ref(false);
 const confirmDialog = ref(false);
 const editing = ref(false);
-
 const selected = ref({});
 const productoAEliminar = ref(null);
-
-const search = ref("");
-
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 
+const { filters } = usePersistentFilters("productos_filters", {
+  search: "",
+});
+const { options, serverParams, updateOptions } = useServerTable({
+  ordering: "nombre",
+});
+
 const headers = [
   { title: "Código", key: "codigo" },
   { title: "Nombre", key: "nombre" },
-  { title: "Categoría", key: "categoria_nombre" },
+  { title: "Categoría", key: "categoria_nombre", sortable: false },
   { title: "Stock", key: "stock_actual" },
   { title: "Precio", key: "precio_venta" },
-  { title: "Estado", key: "estado" },
+  { title: "Estado", key: "estado", sortable: false },
   { title: "Acciones", key: "actions", sortable: false },
 ];
+
+const debouncedLoad = useDebounce(() => {
+  options.page = 1;
+  cargarProductos();
+});
 
 function mostrarMensaje(texto, color = "success") {
   snackbarText.value = texto;
@@ -62,16 +72,22 @@ async function cargarProductos() {
 
   try {
     const response = await getProductos({
-      search: search.value || undefined,
-      ordering: "nombre",
+      ...serverParams.value,
+      search: filters.search || undefined,
     });
 
     productos.value = response.results ?? response;
+    totalItems.value = response.count ?? productos.value.length;
   } catch (error) {
     mostrarMensaje("No se pudieron cargar los productos.", "error");
   } finally {
     loading.value = false;
   }
+}
+
+function onTableOptions(value) {
+  updateOptions(value);
+  cargarProductos();
 }
 
 async function cargarCategorias() {
@@ -122,21 +138,16 @@ async function confirmarEliminarProducto() {
 
   try {
     await deleteProducto(productoAEliminar.value.id);
-
     mostrarMensaje("Producto eliminado correctamente.");
-
     confirmDialog.value = false;
     productoAEliminar.value = null;
-
     await cargarProductos();
   } catch (error) {
     mostrarMensaje("No se pudo eliminar el producto.", "error");
   }
 }
 
-watch(search, () => {
-  cargarProductos();
-});
+watch(() => filters.search, debouncedLoad);
 
 onMounted(async () => {
   await cargarCategorias();
@@ -155,16 +166,26 @@ onMounted(async () => {
 
     <v-card>
       <SearchToolbar
-        v-model="search"
+        v-model="filters.search"
         label="Buscar producto"
         @search="cargarProductos"
       />
 
-      <v-data-table
+      <v-skeleton-loader
+        v-if="loading && !productos.length"
+        type="table"
+        class="mx-4 mb-4"
+      />
+
+      <v-data-table-server
+        v-else
         :headers="headers"
         :items="productos"
+        :items-length="totalItems"
         :loading="loading"
+        :items-per-page="options.itemsPerPage"
         item-value="id"
+        @update:options="onTableOptions"
       >
         <template #item.stock_actual="{ item }">
           <StockChip :stock="Number(item.stock_actual)" />
@@ -200,7 +221,7 @@ onMounted(async () => {
             @click="pedirEliminarProducto(item)"
           />
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <ProductoDialog

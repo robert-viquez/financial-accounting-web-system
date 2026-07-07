@@ -1,8 +1,11 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import { useDebounce } from "@/composables/useDebounce";
+import { usePersistentFilters } from "@/composables/usePersistentFilters";
+import { useServerTable } from "@/composables/useServerTable";
 import {
   getProveedores,
   createProveedor,
@@ -11,24 +14,35 @@ import {
 } from "@/modules/proveedores/api/ProveedoresServices";
 
 const proveedores = ref([]);
+const totalItems = ref(0);
 const loading = ref(false);
 const dialog = ref(false);
 const confirmDialog = ref(false);
 const editing = ref(false);
-const search = ref("");
 const error = ref("");
 const selectedProveedor = ref(null);
-
 const form = ref(getEmptyForm());
+
+const { filters } = usePersistentFilters("proveedores_filters", {
+  search: "",
+});
+const { options, serverParams, updateOptions } = useServerTable({
+  ordering: "nombre",
+});
 
 const headers = [
   { title: "Nombre", key: "nombre" },
-  { title: "Identificación", key: "identificacion" },
-  { title: "Teléfono", key: "telefono" },
-  { title: "Correo", key: "correo" },
-  { title: "Estado", key: "estado" },
+  { title: "Identificación", key: "identificacion", sortable: false },
+  { title: "Teléfono", key: "telefono", sortable: false },
+  { title: "Correo", key: "correo", sortable: false },
+  { title: "Estado", key: "estado", sortable: false },
   { title: "Acciones", key: "actions", sortable: false },
 ];
+
+const debouncedLoad = useDebounce(() => {
+  options.page = 1;
+  cargarProveedores();
+});
 
 function getEmptyForm() {
   return {
@@ -48,16 +62,22 @@ async function cargarProveedores() {
 
   try {
     const data = await getProveedores({
-      search: search.value || undefined,
-      ordering: "nombre",
+      ...serverParams.value,
+      search: filters.search || undefined,
     });
 
     proveedores.value = data.results || data;
+    totalItems.value = data.count ?? proveedores.value.length;
   } catch (err) {
     error.value = err.response?.data?.detail || "No se pudieron cargar los proveedores.";
   } finally {
     loading.value = false;
   }
+}
+
+function onTableOptions(value) {
+  updateOptions(value);
+  cargarProveedores();
 }
 
 function abrirCrear() {
@@ -105,6 +125,8 @@ async function confirmarEliminar() {
   }
 }
 
+watch(() => filters.search, debouncedLoad);
+
 onMounted(cargarProveedores);
 </script>
 
@@ -123,16 +145,26 @@ onMounted(cargarProveedores);
 
     <v-card>
       <SearchToolbar
-        v-model="search"
+        v-model="filters.search"
         label="Buscar proveedor"
         @search="cargarProveedores"
       />
 
-      <v-data-table
+      <v-skeleton-loader
+        v-if="loading && !proveedores.length"
+        type="table"
+        class="mx-4 mb-4"
+      />
+
+      <v-data-table-server
+        v-else
         :headers="headers"
         :items="proveedores"
+        :items-length="totalItems"
         :loading="loading"
+        :items-per-page="options.itemsPerPage"
         item-value="id"
+        @update:options="onTableOptions"
       >
         <template #item.estado="{ item }">
           <v-chip
@@ -148,7 +180,7 @@ onMounted(cargarProveedores);
           <v-btn icon="mdi-pencil" variant="text" size="small" @click="abrirEditar(item)" />
           <v-btn icon="mdi-delete" variant="text" size="small" color="error" @click="pedirEliminar(item)" />
         </template>
-      </v-data-table>
+      </v-data-table-server>
     </v-card>
 
     <v-dialog v-model="dialog" max-width="600">
