@@ -38,6 +38,10 @@ const routes = [
       component: () =>
           import("@/modules/inventario/pages/ProductosView.vue"),
       },
+      {
+      path: "compras",
+      component: () => import("@/modules/compras/pages/ComprasView.vue"),
+      },
     ],
   },
 ];
