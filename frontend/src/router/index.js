@@ -42,6 +42,14 @@ const routes = [
       path: "compras",
       component: () => import("@/modules/compras/pages/ComprasView.vue"),
       },
+      {
+      path: "ventas",
+      component: () => import("@/modules/ventas/pages/VentasView.vue"),
+      },
+      {
+      path: "ventas",
+      component: () => import("@/modules/ventas/pages/VentasView.vue"),
+      },
     ],
   },
 ];
