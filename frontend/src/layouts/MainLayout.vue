@@ -1,16 +1,29 @@
 <script setup>
-import { computed, ref, watch } from "vue";
-import { useRouter } from "vue-router";
-import { useDisplay } from "vuetify";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import { useRoute, useRouter } from "vue-router";
+import { useDisplay, useTheme } from "vuetify";
+import { storeToRefs } from "pinia";
 import { logout } from "@/modules/auth/authService";
+import { useUiStore } from "@/stores/ui";
 
 const router = useRouter();
+const route = useRoute();
 const display = useDisplay();
+const theme = useTheme();
+const uiStore = useUiStore();
+const { isDark } = storeToRefs(uiStore);
 const drawer = ref(true);
 
 const isMobile = computed(() => display.smAndDown.value);
 const isDesktop = computed(() => display.mdAndUp.value);
 const drawerWidth = computed(() => (display.lgAndUp.value ? 260 : 232));
+const breadcrumbs = computed(() => [
+  { title: "Inicio", to: "/dashboard", disabled: route.path === "/dashboard" },
+  {
+    title: route.meta.title || "Página",
+    disabled: true,
+  },
+]);
 
 const menuItems = [
   { title: "Dashboard", icon: "mdi-view-dashboard", to: "/dashboard" },
@@ -32,6 +45,35 @@ function handleLogout() {
   router.push("/login");
 }
 
+function toggleTheme() {
+  uiStore.toggleTheme();
+}
+
+function handleShortcut(event) {
+  const key = event.key.toLowerCase();
+
+  if (event.ctrlKey && key === "b") {
+    event.preventDefault();
+    drawer.value = !drawer.value;
+  }
+
+  if (event.ctrlKey && key === "d") {
+    event.preventDefault();
+    toggleTheme();
+  }
+
+  if (key === "/" && !["INPUT", "TEXTAREA"].includes(event.target.tagName)) {
+    const searchInput = document.querySelector(
+      "input[type='text'], input[aria-label*='Buscar']"
+    );
+
+    if (searchInput) {
+      event.preventDefault();
+      searchInput.focus();
+    }
+  }
+}
+
 watch(
   isMobile,
   (value) => {
@@ -39,6 +81,22 @@ watch(
   },
   { immediate: true }
 );
+
+watch(
+  () => uiStore.theme,
+  (value) => {
+    theme.global.name.value = value;
+  },
+  { immediate: true }
+);
+
+onMounted(() => {
+  window.addEventListener("keydown", handleShortcut);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener("keydown", handleShortcut);
+});
 </script>
 
 <template>
@@ -82,6 +140,17 @@ watch(
 
       <v-spacer />
 
+      <v-tooltip text="Cambiar tema (Ctrl+D)">
+        <template #activator="{ props }">
+          <v-btn
+            v-bind="props"
+            :icon="isDark ? 'mdi-weather-sunny' : 'mdi-weather-night'"
+            variant="text"
+            @click="toggleTheme"
+          />
+        </template>
+      </v-tooltip>
+
       <v-btn
         variant="text"
         :prepend-icon="isDesktop ? 'mdi-logout' : undefined"
@@ -92,8 +161,13 @@ watch(
       </v-btn>
     </v-app-bar>
 
-    <v-main class="bg-grey-lighten-4">
+    <v-main class="app-main">
       <v-container fluid class="app-container">
+        <v-breadcrumbs
+          class="px-0 pt-0 pb-3"
+          density="compact"
+          :items="breadcrumbs"
+        />
         <router-view />
       </v-container>
     </v-main>
@@ -103,6 +177,10 @@ watch(
 <style scoped>
 .app-container {
   padding: 16px;
+}
+
+.app-main {
+  background: rgb(var(--v-theme-background));
 }
 
 .app-title {
