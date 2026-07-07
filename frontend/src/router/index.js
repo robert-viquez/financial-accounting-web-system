@@ -26,29 +26,53 @@ const routes = [
         component: DashboardView,
       },
       {
-      path: "clientes",
-      component: () => import("@/modules/clientes/pages/ClientesView.vue"),
+        path: "clientes",
+        component: () => import("@/modules/clientes/pages/ClientesView.vue"),
       },
       {
-      path: "proveedores",
-      component: () => import("@/modules/proveedores/pages/ProveedoresView.vue"),
+        path: "proveedores",
+        component: () =>
+          import("@/modules/proveedores/pages/ProveedoresView.vue"),
       },
       {
-      path: "inventario",
-      component: () =>
-          import("@/modules/inventario/pages/ProductosView.vue"),
+        path: "inventario",
+        component: () => import("@/modules/inventario/pages/ProductosView.vue"),
       },
       {
-      path: "compras",
-      component: () => import("@/modules/compras/pages/ComprasView.vue"),
+        path: "movimientos-inventario",
+        component: () =>
+          import("@/modules/inventario/pages/MovimientosView.vue"),
       },
       {
-      path: "ventas",
-      component: () => import("@/modules/ventas/pages/VentasView.vue"),
+        path: "categorias",
+        component: () => import("@/modules/inventario/pages/CategoriasView.vue"),
       },
       {
-      path: "ventas",
-      component: () => import("@/modules/ventas/pages/VentasView.vue"),
+        path: "compras",
+        component: () => import("@/modules/compras/pages/ComprasView.vue"),
+      },
+      {
+        path: "ventas",
+        component: () => import("@/modules/ventas/pages/VentasView.vue"),
+      },
+      {
+        path: "cuentas-cobrar",
+        component: () =>
+          import("@/modules/finanzas/pages/CuentasPorCobrarView.vue"),
+      },
+      {
+        path: "cuentas-pagar",
+        component: () =>
+          import("@/modules/finanzas/pages/CuentasPorPagarView.vue"),
+      },
+      {
+        path: "reportes",
+        component: () => import("@/modules/reportes/pages/ReportesView.vue"),
+      },
+      {
+        path: "configuracion",
+        component: () =>
+          import("@/modules/configuracion/pages/ConfiguracionView.vue"),
       },
     ],
   },
