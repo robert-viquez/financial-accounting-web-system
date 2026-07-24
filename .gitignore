@@ -177,3 +177,4 @@ cython_debug/
 node_modules/
 npm-debug.log
 yarn-error.log
+.venv/

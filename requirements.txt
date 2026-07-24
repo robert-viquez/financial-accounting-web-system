@@ -1,0 +1,8 @@
+Django>=5.2
+djangorestframework
+django-filter
+drf-spectacular
+django-cors-headers
+mysqlclient
+python-dotenv
+djangorestframework-simplejwt
