@@ -24,6 +24,14 @@ export default defineConfig([
   js.configs.recommended,
   ...pluginVue.configs['flat/essential'],
 
+  {
+    rules: {
+      'no-unused-vars': ['error', { caughtErrors: 'none' }],
+      // Vuetify usa nombres de slots con puntos, por ejemplo item.fecha.
+      'vue/valid-v-slot': 'off',
+    },
+  },
+
   ...pluginOxlint.buildFromOxlintConfigFile('.oxlintrc.json'),
 
   skipFormatting,
