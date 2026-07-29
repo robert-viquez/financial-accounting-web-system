@@ -1,10 +1,24 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 from inventario.models import MovimientoInventario
 from decimal import Decimal, ROUND_HALF_UP
+from .models import SecuenciaComprobanteVenta
 
 class VentaService:
+    @staticmethod
+    def generar_numero_comprobante():
+        """Genera V-AAAAMMDD-000001 con bloqueo para evitar duplicados."""
+        periodo = timezone.localdate().strftime("%Y%m%d")
+        secuencia, _ = (
+            SecuenciaComprobanteVenta.objects.select_for_update()
+            .get_or_create(periodo=periodo)
+        )
+        secuencia.ultimo_numero += 1
+        secuencia.save(update_fields=["ultimo_numero"])
+        return f"V-{periodo}-{secuencia.ultimo_numero:06d}"
+
     @staticmethod
     def validar_detalle_venta(detalle):
         if detalle.cantidad <= 0:

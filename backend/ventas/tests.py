@@ -39,12 +39,24 @@ class VentaTests(AccountingAPITestCase):
         self.producto_2.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, Decimal("18.00"))
         self.assertEqual(self.producto_2.stock_actual, Decimal("12.00"))
-    def test_numero_comprobante_duplicado_es_rechazado(self):
+    def test_numero_comprobante_es_autogenerado_y_unico(self):
         first = self.client.post("/api/ventas/", self.venta_payload(), format="json")
         second = self.client.post("/api/ventas/", self.venta_payload(), format="json")
         self.assertEqual(first.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(second.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(Venta.objects.count(), 1)
+        self.assertEqual(second.status_code, status.HTTP_201_CREATED)
+        self.assertNotEqual(
+            first.data["numero_comprobante"],
+            second.data["numero_comprobante"],
+        )
+        self.assertRegex(first.data["numero_comprobante"], r"^V-\d{8}-\d{6}$")
+        self.assertEqual(Venta.objects.count(), 2)
+
+    def test_usa_estimado_cliente_cuando_no_se_envia_cliente(self):
+        payload = self.venta_payload()
+        payload.pop("cliente")
+        response = self.client.post("/api/ventas/", payload, format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["cliente_nombre"], "Estimado Cliente")
 
     def test_anular_reintegra_inventario_una_sola_vez(self):
         created = self.client.post("/api/ventas/", self.venta_payload(), format="json")

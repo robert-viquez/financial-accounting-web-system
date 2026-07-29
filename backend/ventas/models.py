@@ -43,6 +43,17 @@ class Venta(models.Model):
         return self.numero_comprobante
 
 
+class SecuenciaComprobanteVenta(models.Model):
+    """Contador transaccional para emitir comprobantes de venta únicos."""
+
+    periodo = models.CharField(max_length=8, unique=True)
+    ultimo_numero = models.PositiveBigIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Secuencia de comprobante de venta"
+        verbose_name_plural = "Secuencias de comprobantes de venta"
+
+
 class DetalleVenta(models.Model):
     venta = models.ForeignKey(Venta, on_delete=models.CASCADE, related_name="detalles")
     producto = models.ForeignKey(Producto, on_delete=models.PROTECT)
