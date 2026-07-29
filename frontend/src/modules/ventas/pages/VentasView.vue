@@ -13,6 +13,7 @@ import { createVenta, deleteVenta, getVentas } from "../api/ventasService";
 import { getClientes } from "@/modules/clientes/api/ClientesServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 import { getMediosPago } from "@/modules/terceros/api/MediosPagoServices";
+import { getConfiguracion } from "@/modules/configuracion/api/configuracionService";
 
 const ventas = ref([]);
 const totalItems = ref(0);
@@ -27,6 +28,7 @@ const ventaAEliminar = ref(null);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
+const lectorHabilitado = ref(true);
 
 const { filters } = usePersistentFilters("ventas_filters", {
   search: "",
@@ -151,12 +153,22 @@ function onTableOptions(value) {
 async function cargarCatalogos() {
   try {
     const clientesResponse = await getClientes({ ordering: "nombre" });
-    const productosResponse = await getProductos({ ordering: "nombre" });
+    const productosResponse = await getProductos({
+      ordering: "nombre",
+      page_size: 100,
+      estado: true,
+    });
     const mediosPagoResponse = await getMediosPago({ ordering: "nombre" });
 
     clientes.value = clientesResponse.results ?? clientesResponse;
     productos.value = productosResponse.results ?? productosResponse;
     mediosPago.value = mediosPagoResponse.results ?? mediosPagoResponse;
+    try {
+      const config = await getConfiguracion();
+      lectorHabilitado.value = config.lector_codigo_barras !== false;
+    } catch {
+      lectorHabilitado.value = true;
+    }
   } catch (error) {
     mostrarMensaje(
       obtenerMensajeError(error, "No se pudieron cargar los catálogos."),
@@ -228,7 +240,7 @@ onMounted(async () => {
   <section>
     <PageHeader
       title="Ventas"
-      subtitle="Registro de ventas y actualización automática del inventario."
+      subtitle="Cobro rápido, comprobante automático y actualización inmediata del inventario."
       button-text="Nueva venta"
       @click="nuevaVenta"
     />
@@ -257,7 +269,7 @@ onMounted(async () => {
         @update:options="onTableOptions"
       >
         <template #item.cliente_nombre="{ item }">
-          {{ item.cliente_nombre || "Consumidor final" }}
+          {{ item.cliente_nombre || "Estimado Cliente" }}
         </template>
 
         <template #item.medio_pago_nombre="{ item }">
@@ -310,6 +322,7 @@ onMounted(async () => {
       :productos="productos"
       :medios-pago="mediosPago"
       :loading="saving"
+      :lector-habilitado="lectorHabilitado"
       @save="guardarVenta"
       @validation-error="mostrarMensaje($event, 'error')"
     />
