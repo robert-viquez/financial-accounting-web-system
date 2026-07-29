@@ -8,6 +8,7 @@ class Cliente(models.Model):
     correo = models.EmailField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
     estado = models.BooleanField(default=True)
+    dias_credito = models.PositiveSmallIntegerField(default=30)
 
     class Meta:
         verbose_name = "Cliente"
@@ -25,6 +26,7 @@ class Proveedor(models.Model):
     correo = models.EmailField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
     estado = models.BooleanField(default=True)
+    dias_credito = models.PositiveSmallIntegerField(default=30)
 
     class Meta:
         verbose_name = "Proveedor"

@@ -1,4 +1,5 @@
 from django.db import models
+from django.contrib.auth.models import User
 
 # Create your models here.
 class CategoriaProducto(models.Model):
@@ -63,6 +64,13 @@ class MovimientoInventario(models.Model):
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     fecha = models.DateTimeField(auto_now_add=True)
     descripcion = models.TextField(blank=True, null=True)
+    usuario = models.ForeignKey(
+        User,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="movimientos_inventario",
+    )
 
     class Meta:
         verbose_name = "Movimiento de inventario"

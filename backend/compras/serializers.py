@@ -76,19 +76,23 @@ class CompraSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         detalles_data = validated_data.pop("detalles")
         usuario = self.context["request"].user
-
-        compra = Compra.objects.create(
-            usuario=usuario,
-            **validated_data
-        )
-
-        for detalle_data in detalles_data:
-            DetalleCompra.objects.create(
-                compra=compra,
-                **detalle_data
+        try:
+            compra = Compra.objects.create(
+                usuario=usuario,
+                **validated_data
             )
 
-        compra.refresh_from_db()
-        return compra
+            for detalle_data in detalles_data:
+                DetalleCompra.objects.create(
+                    compra=compra,
+                    **detalle_data
+                )
+
+            compra.refresh_from_db()
+            return compra
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc

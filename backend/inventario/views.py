@@ -1,5 +1,8 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+from datetime import datetime, time, timedelta
 
 from .models import CategoriaProducto, Producto, MovimientoInventario
 from .serializers import (
@@ -7,12 +10,13 @@ from .serializers import (
     ProductoSerializer,
     MovimientoInventarioSerializer,
 )
+from usuarios.permissions import PuedeOperar
 
 
 class CategoriaProductoViewSet(viewsets.ModelViewSet):
     queryset = CategoriaProducto.objects.all().order_by("nombre")
     serializer_class = CategoriaProductoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PuedeOperar]
 
     filterset_fields = [
         "estado",
@@ -37,7 +41,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
     )
 
     serializer_class = ProductoSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PuedeOperar]
 
     filterset_fields = [
         "categoria",
@@ -62,7 +66,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
 class MovimientoInventarioViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = (
         MovimientoInventario.objects
-        .select_related("producto")
+        .select_related("producto", "usuario")
         .all()
         .order_by("-fecha")
     )
@@ -90,9 +94,21 @@ class MovimientoInventarioViewSet(viewsets.ReadOnlyModelViewSet):
         fecha_hasta = self.request.query_params.get("fecha_hasta")
 
         if fecha_desde:
-            queryset = queryset.filter(fecha__date__gte=fecha_desde)
+            desde = parse_date(fecha_desde)
+            if desde:
+                limite_desde = timezone.make_aware(
+                    datetime.combine(desde, time.min),
+                    timezone.get_current_timezone(),
+                )
+                queryset = queryset.filter(fecha__gte=limite_desde)
 
         if fecha_hasta:
-            queryset = queryset.filter(fecha__date__lte=fecha_hasta)
+            hasta = parse_date(fecha_hasta)
+            if hasta:
+                limite_hasta = timezone.make_aware(
+                    datetime.combine(hasta + timedelta(days=1), time.min),
+                    timezone.get_current_timezone(),
+                )
+                queryset = queryset.filter(fecha__lt=limite_hasta)
 
         return queryset

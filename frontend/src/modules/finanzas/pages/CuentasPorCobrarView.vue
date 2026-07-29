@@ -1,13 +1,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from "vue";
 
-import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
+import { fetchAllPages } from "@/api/pagination";
 import { useDebounce } from "@/composables/useDebounce";
 import { usePersistentFilters } from "@/composables/usePersistentFilters";
 import {
+  anularPagoCliente,
   createPagoCliente,
-  deleteCuentaPorCobrar,
   getCuentasPorCobrar,
   getPagosClientes,
 } from "@/modules/finanzas/api/finanzasService";
@@ -21,7 +21,6 @@ const saving = ref(false);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
-const confirmDialog = ref(false);
 const pagoDialog = ref(false);
 const historialDialog = ref(false);
 const cuentaSeleccionada = ref(null);
@@ -131,8 +130,7 @@ async function cargarCuentas() {
       params.estado = filters.estado;
     }
 
-    const response = await getCuentasPorCobrar(params);
-    const data = normalizar(response);
+    const data = await fetchAllPages(getCuentasPorCobrar, params);
     cuentas.value =
       filters.estado === "VENCIDA"
         ? data.filter((cuenta) => estadoCalculado(cuenta) === "VENCIDA")
@@ -146,8 +144,8 @@ async function cargarCuentas() {
 
 async function cargarCatalogos() {
   const [mediosPagoResponse, pagosResponse] = await Promise.all([
-    getMediosPago({ ordering: "nombre" }),
-    getPagosClientes({ ordering: "-fecha" }),
+    fetchAllPages(getMediosPago, { ordering: "nombre" }),
+    fetchAllPages(getPagosClientes, { ordering: "-fecha" }),
   ]);
 
   mediosPago.value = normalizar(mediosPagoResponse);
@@ -166,11 +164,6 @@ function abrirPago(cuenta) {
 function abrirHistorial(cuenta) {
   cuentaSeleccionada.value = cuenta;
   historialDialog.value = true;
-}
-
-function pedirEliminar(cuenta) {
-  cuentaSeleccionada.value = cuenta;
-  confirmDialog.value = true;
 }
 
 async function registrarPago() {
@@ -201,17 +194,13 @@ async function registrarPago() {
   }
 }
 
-async function confirmarEliminar() {
-  if (!cuentaSeleccionada.value) return;
-
+async function anularPago(pago) {
   try {
-    await deleteCuentaPorCobrar(cuentaSeleccionada.value.id);
-    confirmDialog.value = false;
-    cuentaSeleccionada.value = null;
-    mostrarMensaje("Cuenta eliminada correctamente.");
-    await cargarCuentas();
+    await anularPagoCliente(pago.id);
+    mostrarMensaje("Abono anulado correctamente.");
+    await Promise.all([cargarCuentas(), cargarCatalogos()]);
   } catch (error) {
-    mostrarMensaje("No se pudo eliminar la cuenta.", "error");
+    mostrarMensaje(error.response?.data?.detail?.[0] || "No se pudo anular el abono.", "error");
   }
 }
 
@@ -313,13 +302,6 @@ onMounted(async () => {
             size="small"
             @click="abrirHistorial(item)"
           />
-          <v-btn
-            icon="mdi-delete"
-            color="error"
-            variant="text"
-            size="small"
-            @click="pedirEliminar(item)"
-          />
         </template>
       </v-data-table>
     </v-card>
@@ -407,6 +389,8 @@ onMounted(async () => {
               <th>Medio</th>
               <th>Referencia</th>
               <th class="text-right">Monto</th>
+              <th>Estado</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -415,6 +399,8 @@ onMounted(async () => {
               <td>{{ pago.medio_pago_nombre }}</td>
               <td>{{ pago.referencia || "-" }}</td>
               <td class="text-right">{{ formatoCRC(pago.monto) }}</td>
+              <td>{{ pago.estado }}</td>
+              <td><v-btn v-if="pago.estado === 'APLICADO'" size="small" color="error" variant="text" @click="anularPago(pago)">Anular</v-btn></td>
             </tr>
           </tbody>
         </v-table>
@@ -424,13 +410,6 @@ onMounted(async () => {
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <ConfirmDialog
-      v-model="confirmDialog"
-      title="Eliminar cuenta"
-      :message="`¿Desea eliminar la cuenta ${cuentaSeleccionada?.venta_numero || ''}?`"
-      @confirm="confirmarEliminar"
-    />
 
     <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}

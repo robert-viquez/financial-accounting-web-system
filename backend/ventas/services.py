@@ -50,6 +50,9 @@ class VentaService:
             from finanzas.services import FinanzasService
 
             FinanzasService.crear_cuenta_por_cobrar_desde_venta(venta)
+
+        from contabilidad.services import ContabilidadService
+        ContabilidadService.contabilizar_venta(venta)
             
     @staticmethod
     @transaction.atomic
@@ -65,6 +68,7 @@ class VentaService:
             cantidad=detalle.cantidad,
             costo_unitario=producto.costo_promedio,
             descripcion=f"Salida por venta {detalle.venta.numero_comprobante}",
+            usuario=detalle.venta.usuario,
         )
 
     @staticmethod
@@ -81,4 +85,5 @@ class VentaService:
             cantidad=detalle.cantidad,
             costo_unitario=producto.costo_promedio,
             descripcion=f"Reversión de venta {detalle.venta.numero_comprobante}",
+            usuario=detalle.venta.usuario,
         )

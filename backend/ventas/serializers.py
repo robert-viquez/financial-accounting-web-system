@@ -82,19 +82,23 @@ class VentaSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
         detalles_data = validated_data.pop("detalles")
         usuario = self.context["request"].user
-
-        venta = Venta.objects.create(
-            usuario=usuario,
-            **validated_data
-        )
-
-        for detalle_data in detalles_data:
-            DetalleVenta.objects.create(
-                venta=venta,
-                **detalle_data
+        try:
+            venta = Venta.objects.create(
+                usuario=usuario,
+                **validated_data
             )
 
-        venta.refresh_from_db()
-        return venta
+            for detalle_data in detalles_data:
+                DetalleVenta.objects.create(
+                    venta=venta,
+                    **detalle_data
+                )
+
+            venta.refresh_from_db()
+            return venta
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc

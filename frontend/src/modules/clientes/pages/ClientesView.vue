@@ -53,6 +53,7 @@ function getEmptyForm() {
     correo: "",
     direccion: "",
     estado: true,
+    dias_credito: 30,
   };
 }
 
@@ -209,6 +210,9 @@ onMounted(cargarClientes);
 
             <v-col cols="12">
               <v-textarea v-model="form.direccion" label="Dirección" variant="outlined" density="compact" rows="2" />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field v-model.number="form.dias_credito" label="Días de crédito" type="number" min="0" variant="outlined" density="compact" />
             </v-col>
 
             <v-col cols="12">

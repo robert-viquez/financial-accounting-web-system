@@ -68,6 +68,7 @@ class CompraService:
             cantidad=detalle.cantidad,
             costo_unitario=detalle.costo_unitario,
             descripcion=f"Entrada por compra {detalle.compra.numero_factura}",
+            usuario=detalle.compra.usuario,
         )
 
     @staticmethod
@@ -89,6 +90,7 @@ class CompraService:
             cantidad=detalle.cantidad,
             costo_unitario=detalle.costo_unitario,
             descripcion=f"Reversión de compra {detalle.compra.numero_factura}",
+            usuario=detalle.compra.usuario,
         )
         
     @staticmethod
@@ -99,3 +101,6 @@ class CompraService:
             from finanzas.services import FinanzasService
 
             FinanzasService.crear_cuenta_por_pagar_desde_compra(compra)
+
+        from contabilidad.services import ContabilidadService
+        ContabilidadService.contabilizar_compra(compra)

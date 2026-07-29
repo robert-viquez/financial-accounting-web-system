@@ -23,7 +23,11 @@ class MovimientoInventarioSerializer(serializers.ModelSerializer):
         source="producto.nombre",
         read_only=True
     )
-    usuario_nombre = serializers.SerializerMethodField()
+    usuario_nombre = serializers.CharField(
+        source="usuario.username",
+        read_only=True,
+        default="-",
+    )
     compra_relacionada = serializers.SerializerMethodField()
     venta_relacionada = serializers.SerializerMethodField()
 
@@ -31,10 +35,7 @@ class MovimientoInventarioSerializer(serializers.ModelSerializer):
         model = MovimientoInventario
         fields = "__all__"
 
-    def get_usuario_nombre(self, obj):
-        return "-"
-
-    def get_compra_relacionada(self, obj):
+    def get_compra_relacionada(self, obj) -> str:
         descripcion = obj.descripcion or ""
 
         if "compra" not in descripcion.lower():
@@ -42,7 +43,7 @@ class MovimientoInventarioSerializer(serializers.ModelSerializer):
 
         return descripcion.split()[-1]
 
-    def get_venta_relacionada(self, obj):
+    def get_venta_relacionada(self, obj) -> str:
         descripcion = obj.descripcion or ""
 
         if "venta" not in descripcion.lower():

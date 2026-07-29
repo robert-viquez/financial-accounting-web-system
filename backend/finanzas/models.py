@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth.models import User
 from django.db import models, transaction
 
 from terceros.models import Cliente, MedioPago
@@ -42,6 +43,7 @@ class CuentaPorCobrar(models.Model):
 
 
 class PagoCliente(models.Model):
+    ESTADOS = [("APLICADO", "Aplicado"), ("ANULADO", "Anulado")]
     cuenta_por_cobrar = models.ForeignKey(
         CuentaPorCobrar,
         on_delete=models.PROTECT,
@@ -52,6 +54,12 @@ class PagoCliente(models.Model):
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     referencia = models.CharField(max_length=100, blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
+    usuario = models.ForeignKey(
+        User, on_delete=models.PROTECT, blank=True, null=True,
+        related_name="pagos_clientes",
+    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="APLICADO")
+    anulado_en = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         verbose_name = "Pago de cliente"
@@ -112,6 +120,7 @@ class CuentaPorPagar(models.Model):
 
 
 class PagoProveedor(models.Model):
+    ESTADOS = [("APLICADO", "Aplicado"), ("ANULADO", "Anulado")]
     cuenta_por_pagar = models.ForeignKey(
         CuentaPorPagar,
         on_delete=models.PROTECT,
@@ -122,6 +131,12 @@ class PagoProveedor(models.Model):
     monto = models.DecimalField(max_digits=12, decimal_places=2)
     referencia = models.CharField(max_length=100, blank=True, null=True)
     observaciones = models.TextField(blank=True, null=True)
+    usuario = models.ForeignKey(
+        User, on_delete=models.PROTECT, blank=True, null=True,
+        related_name="pagos_proveedores",
+    )
+    estado = models.CharField(max_length=20, choices=ESTADOS, default="APLICADO")
+    anulado_en = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         verbose_name = "Pago a proveedor"

@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from .models import Compra
 from .serializers import CompraSerializer
+from usuarios.permissions import PuedeOperar
 
 
 class CompraViewSet(viewsets.ModelViewSet):
@@ -17,7 +18,7 @@ class CompraViewSet(viewsets.ModelViewSet):
         .order_by("-fecha")
     )
     serializer_class = CompraSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [PuedeOperar]
 
     filterset_fields = [
     "tipo_compra",
@@ -37,6 +38,8 @@ class CompraViewSet(viewsets.ModelViewSet):
 
     @transaction.atomic
     def perform_destroy(self, instance):
+        from contabilidad.services import ContabilidadService
+        ContabilidadService.anular_por_origen("COMPRA", instance.pk)
         for detalle in list(instance.detalles.select_related("producto")):
             detalle.delete()
         instance.delete()
@@ -50,6 +53,14 @@ class CompraViewSet(viewsets.ModelViewSet):
                 {"detail": "La compra ya está anulada."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        if (
+            hasattr(compra, "cuenta_por_pagar")
+            and compra.cuenta_por_pagar.pagos.exists()
+        ):
+            return Response(
+                {"detail": "No se puede anular una compra con pagos registrados."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         for detalle in compra.detalles.select_related("producto"):
             if detalle.inventario_actualizado:
                 from .services import CompraService
@@ -61,4 +72,6 @@ class CompraViewSet(viewsets.ModelViewSet):
         if hasattr(compra, "cuenta_por_pagar"):
             compra.cuenta_por_pagar.estado = "ANULADA"
             compra.cuenta_por_pagar.save(update_fields=["estado"])
+        from contabilidad.services import ContabilidadService
+        ContabilidadService.anular_por_origen("COMPRA", compra.pk)
         return Response(self.get_serializer(compra).data)

@@ -27,7 +27,15 @@ class CuentaPorCobrarSerializer(serializers.ModelSerializer):
             "saldo",
             "estado",
         ]
-        read_only_fields = ["fecha_emision"]
+        read_only_fields = [
+            "venta",
+            "cliente",
+            "fecha_emision",
+            "fecha_vencimiento",
+            "monto_original",
+            "saldo",
+            "estado",
+        ]
 
 
 class PagoClienteSerializer(serializers.ModelSerializer):
@@ -35,6 +43,7 @@ class PagoClienteSerializer(serializers.ModelSerializer):
         source="medio_pago.nombre",
         read_only=True,
     )
+    usuario_nombre = serializers.CharField(source="usuario.username", read_only=True)
 
     class Meta:
         model = PagoCliente
@@ -47,10 +56,15 @@ class PagoClienteSerializer(serializers.ModelSerializer):
             "monto",
             "referencia",
             "observaciones",
+            "usuario",
+            "usuario_nombre",
+            "estado",
+            "anulado_en",
         ]
-        read_only_fields = ["fecha"]
+        read_only_fields = ["fecha", "usuario", "estado", "anulado_en"]
 
     def create(self, validated_data):
+        validated_data["usuario"] = self.context["request"].user
         try:
             return super().create(validated_data)
         except Exception as exc:
@@ -84,7 +98,15 @@ class CuentaPorPagarSerializer(serializers.ModelSerializer):
             "saldo",
             "estado",
         ]
-        read_only_fields = ["fecha_emision"]
+        read_only_fields = [
+            "compra",
+            "proveedor",
+            "fecha_emision",
+            "fecha_vencimiento",
+            "monto_original",
+            "saldo",
+            "estado",
+        ]
 
 
 class PagoProveedorSerializer(serializers.ModelSerializer):
@@ -92,6 +114,7 @@ class PagoProveedorSerializer(serializers.ModelSerializer):
         source="medio_pago.nombre",
         read_only=True,
     )
+    usuario_nombre = serializers.CharField(source="usuario.username", read_only=True)
 
     class Meta:
         model = PagoProveedor
@@ -104,10 +127,15 @@ class PagoProveedorSerializer(serializers.ModelSerializer):
             "monto",
             "referencia",
             "observaciones",
+            "usuario",
+            "usuario_nombre",
+            "estado",
+            "anulado_en",
         ]
-        read_only_fields = ["fecha"]
+        read_only_fields = ["fecha", "usuario", "estado", "anulado_en"]
 
     def create(self, validated_data):
+        validated_data["usuario"] = self.context["request"].user
         try:
             return super().create(validated_data)
         except Exception as exc:
