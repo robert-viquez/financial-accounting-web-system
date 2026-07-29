@@ -2,9 +2,21 @@
 import { onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import {
+  cambiarPassword as cambiarPasswordApi,
+  getConfiguracion,
+  getAuditoria,
+  getPerfil,
+  getRoles,
+  getUsuarios,
+  updateConfiguracion,
+  updatePerfil,
+} from "@/modules/configuracion/api/configuracionService";
 
 const snackbar = ref(false);
 const snackbarText = ref("");
+const snackbarColor = ref("success");
+const saving = ref(false);
 
 const empresa = reactive({
   nombre: "",
@@ -30,49 +42,72 @@ const password = reactive({
   confirmar: "",
 });
 
-const roles = [
-  { nombre: "Administrador", descripcion: "Acceso completo al sistema." },
-  { nombre: "Contabilidad", descripcion: "Gestión contable y reportes." },
-  { nombre: "Operaciones", descripcion: "Ventas, compras e inventario." },
-];
+const roles = ref([]);
+const usuarios = ref([]);
+const auditoria = ref([]);
 
-const usuarios = [
-  { nombre: "Usuario actual", rol: "Administrador", estado: "Activo" },
-];
-
-function cargarConfiguracion() {
-  const saved = JSON.parse(localStorage.getItem("app_configuracion") || "{}");
-  Object.assign(empresa, saved.empresa || {});
-  Object.assign(impuestos, saved.impuestos || {});
-  Object.assign(perfil, saved.perfil || {});
-}
-
-function guardarConfiguracion() {
-  localStorage.setItem(
-    "app_configuracion",
-    JSON.stringify({
-      empresa,
-      impuestos,
-      perfil,
-    })
-  );
-
-  snackbarText.value = "Configuración guardada correctamente.";
+function mensaje(texto, color = "success") {
+  snackbarText.value = texto;
+  snackbarColor.value = color;
   snackbar.value = true;
 }
 
-function cambiarPassword() {
+async function cargarConfiguracion() {
+  try {
+    const [config, currentProfile, roleData] = await Promise.all([
+      getConfiguracion(),
+      getPerfil(),
+      getRoles(),
+    ]);
+    Object.assign(empresa, config);
+    impuestos.iva = Number(config.iva);
+    impuestos.moneda = config.moneda;
+    perfil.nombre = currentProfile.nombre;
+    perfil.correo = currentProfile.correo;
+    roles.value = roleData;
+    try {
+      const userData = await getUsuarios();
+      usuarios.value = userData.results ?? userData;
+      const auditData = await getAuditoria();
+      auditoria.value = auditData.results ?? auditData;
+    } catch {
+      usuarios.value = [currentProfile];
+    }
+  } catch {
+    mensaje("No se pudo cargar la configuración.", "error");
+  }
+}
+
+async function guardarConfiguracion() {
+  saving.value = true;
+  try {
+    await Promise.all([
+      updateConfiguracion({ ...empresa, ...impuestos }),
+      updatePerfil({ first_name: perfil.nombre, correo: perfil.correo }),
+    ]);
+    mensaje("Configuración guardada correctamente.");
+  } catch (error) {
+    mensaje(error.response?.data?.detail || "No se pudo guardar la configuración.", "error");
+  } finally {
+    saving.value = false;
+  }
+}
+
+async function cambiarPassword() {
   if (!password.actual || !password.nueva || password.nueva !== password.confirmar) {
-    snackbarText.value = "Revise la contraseña actual y la confirmación.";
-    snackbar.value = true;
+    mensaje("Revise la contraseña actual y la confirmación.", "error");
     return;
   }
-
-  password.actual = "";
-  password.nueva = "";
-  password.confirmar = "";
-  snackbarText.value = "Solicitud de cambio de contraseña registrada.";
-  snackbar.value = true;
+  try {
+    await cambiarPasswordApi({ actual: password.actual, nueva: password.nueva });
+    password.actual = "";
+    password.nueva = "";
+    password.confirmar = "";
+    mensaje("Contraseña actualizada correctamente.");
+  } catch (error) {
+    const data = error.response?.data;
+    mensaje(data?.actual?.[0] || data?.nueva?.[0] || "No se pudo cambiar la contraseña.", "error");
+  }
 }
 
 onMounted(cargarConfiguracion);
@@ -108,6 +143,24 @@ onMounted(cargarConfiguracion);
               </v-col>
             </v-row>
           </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12">
+        <v-card>
+          <v-card-title>Auditoría reciente</v-card-title>
+          <v-table density="compact">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Ruta</th><th>Resultado</th></tr></thead>
+            <tbody>
+              <tr v-for="item in auditoria" :key="item.id">
+                <td>{{ new Date(item.fecha).toLocaleString("es-CR") }}</td>
+                <td>{{ item.usuario_nombre }}</td>
+                <td>{{ item.metodo }}</td>
+                <td>{{ item.ruta }}</td>
+                <td>{{ item.codigo_respuesta }}</td>
+              </tr>
+            </tbody>
+          </v-table>
         </v-card>
       </v-col>
 
@@ -185,8 +238,8 @@ onMounted(cargarConfiguracion);
             <tbody>
               <tr v-for="usuario in usuarios" :key="usuario.nombre">
                 <td>{{ usuario.nombre }}</td>
-                <td>{{ usuario.rol }}</td>
-                <td>{{ usuario.estado }}</td>
+                <td>{{ usuario.roles?.join(", ") || "Sin rol" }}</td>
+                <td>{{ usuario.is_active ? "Activo" : "Inactivo" }}</td>
               </tr>
             </tbody>
           </v-table>
@@ -209,12 +262,12 @@ onMounted(cargarConfiguracion);
     </v-row>
 
     <div class="d-flex justify-end mt-4">
-      <v-btn color="primary" prepend-icon="mdi-content-save" @click="guardarConfiguracion">
+      <v-btn color="primary" prepend-icon="mdi-content-save" :loading="saving" @click="guardarConfiguracion">
         Guardar configuración
       </v-btn>
     </div>
 
-    <v-snackbar v-model="snackbar" color="success" timeout="3000">
+    <v-snackbar v-model="snackbar" :color="snackbarColor" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
   </section>
