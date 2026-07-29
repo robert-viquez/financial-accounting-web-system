@@ -4,6 +4,7 @@ import { ref, onMounted, watch } from "vue";
 import PageHeader from "@/components/common/PageHeader.vue";
 import SearchToolbar from "@/components/common/SearchToolbar.vue";
 import ConfirmDialog from "@/components/common/ConfirmDialog.vue";
+import BarcodeScannerInput from "@/components/common/BarcodeScannerInput.vue";
 import { useDebounce } from "@/composables/useDebounce";
 import { usePersistentFilters } from "@/composables/usePersistentFilters";
 import { useServerTable } from "@/composables/useServerTable";
@@ -16,12 +17,16 @@ import {
   createProducto,
   updateProducto,
   deleteProducto,
+  getUnidadesMedida,
+  registrarEntradaPorCodigo,
 } from "../api/ProductosServices";
 import { getCategorias } from "../api/CategoriasServices";
+import { getConfiguracion } from "@/modules/configuracion/api/configuracionService";
 
 const productos = ref([]);
 const totalItems = ref(0);
 const categorias = ref([]);
+const unidades = ref([]);
 const loading = ref(false);
 const dialog = ref(false);
 const confirmDialog = ref(false);
@@ -31,6 +36,13 @@ const productoAEliminar = ref(null);
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
+const entrada = ref({
+  codigo: "",
+  cantidad: 1,
+  costo_unitario: 0,
+});
+const scanning = ref(false);
+const lectorHabilitado = ref(true);
 
 const { filters } = usePersistentFilters("productos_filters", {
   search: "",
@@ -41,6 +53,7 @@ const { options, serverParams, updateOptions } = useServerTable({
 
 const headers = [
   { title: "Código", key: "codigo" },
+  { title: "Código de barras", key: "codigo_barras", sortable: false },
   { title: "Nombre", key: "nombre" },
   { title: "Categoría", key: "categoria_nombre", sortable: false },
   { title: "Stock", key: "stock_actual" },
@@ -99,6 +112,42 @@ async function cargarCategorias() {
   }
 }
 
+async function cargarUnidades() {
+  try {
+    const response = await getUnidadesMedida({ ordering: "nombre" });
+    unidades.value = response.results ?? response;
+  } catch {
+    mostrarMensaje("No se pudieron cargar las unidades de medida.", "error");
+  }
+}
+
+async function registrarEntrada(codigo = entrada.value.codigo) {
+  if (!codigo || Number(entrada.value.cantidad) <= 0) {
+    mostrarMensaje("Escanee un código e indique una cantidad válida.", "error");
+    return;
+  }
+  scanning.value = true;
+  try {
+    const producto = await registrarEntradaPorCodigo({
+      codigo,
+      cantidad: Number(entrada.value.cantidad).toFixed(2),
+      costo_unitario: Number(entrada.value.costo_unitario || 0).toFixed(2),
+    });
+    mostrarMensaje(
+      `Entrada registrada: ${producto.nombre}. Existencia actual: ${producto.stock_actual} ${producto.unidad_medida_simbolo || ""}.`
+    );
+    entrada.value.codigo = "";
+    await cargarProductos();
+  } catch (error) {
+    mostrarMensaje(
+      error.response?.data?.detail || "No se pudo registrar la entrada.",
+      "error"
+    );
+  } finally {
+    scanning.value = false;
+  }
+}
+
 function nuevoProducto() {
   editing.value = false;
   selected.value = {};
@@ -150,7 +199,15 @@ async function confirmarEliminarProducto() {
 watch(() => filters.search, debouncedLoad);
 
 onMounted(async () => {
-  await cargarCategorias();
+  await Promise.all([
+    cargarCategorias(),
+    cargarUnidades(),
+    getConfiguracion()
+      .then((config) => {
+        lectorHabilitado.value = config.lector_codigo_barras !== false;
+      })
+      .catch(() => {}),
+  ]);
   await cargarProductos();
 });
 </script>
@@ -163,6 +220,45 @@ onMounted(async () => {
       button-text="Nuevo producto"
       @click="nuevoProducto"
     />
+
+    <v-card v-if="lectorHabilitado" class="scanner-card mb-4" variant="tonal">
+      <v-card-title class="d-flex align-center ga-2">
+        <v-icon icon="mdi-barcode-scan" />
+        Entrada rápida con lector
+      </v-card-title>
+      <v-card-subtitle>
+        El lector funciona como teclado: escanee y presione Enter.
+      </v-card-subtitle>
+      <v-card-text>
+        <div class="scanner-grid">
+          <BarcodeScannerInput
+            label="Escanee el producto"
+            :loading="scanning"
+            @scan="registrarEntrada"
+          />
+          <v-text-field
+            v-model.number="entrada.cantidad"
+            label="Cantidad que ingresa"
+            type="number"
+            min="0.01"
+            step="0.01"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
+          <v-text-field
+            v-model.number="entrada.costo_unitario"
+            label="Costo unitario"
+            type="number"
+            min="0"
+            prefix="₡"
+            variant="outlined"
+            density="comfortable"
+            hide-details
+          />
+        </div>
+      </v-card-text>
+    </v-card>
 
     <v-card>
       <SearchToolbar
@@ -188,7 +284,10 @@ onMounted(async () => {
         @update:options="onTableOptions"
       >
         <template #item.stock_actual="{ item }">
-          <StockChip :stock="Number(item.stock_actual)" />
+          <div class="d-flex align-center ga-1">
+            <StockChip :stock="Number(item.stock_actual)" />
+            <span class="text-caption">{{ item.unidad_medida_simbolo }}</span>
+          </div>
         </template>
 
         <template #item.precio_venta="{ item }">
@@ -228,6 +327,7 @@ onMounted(async () => {
       v-model="dialog"
       :producto="selected"
       :categorias="categorias"
+      :unidades="unidades"
       :editing="editing"
       @save="guardarProducto"
     />
@@ -244,3 +344,35 @@ onMounted(async () => {
     </v-snackbar>
   </section>
 </template>
+
+<style scoped>
+.scanner-card {
+  overflow: visible;
+}
+
+.scanner-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(260px, 2fr) minmax(170px, 1fr) minmax(170px, 1fr);
+}
+
+@media (max-width: 959px) {
+  .scanner-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .scanner-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 599px) {
+  .scanner-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scanner-grid > :first-child {
+    grid-column: auto;
+  }
+}
+</style>

@@ -12,6 +12,12 @@ import {
   updateConfiguracion,
   updatePerfil,
 } from "@/modules/configuracion/api/configuracionService";
+import {
+  createUnidadMedida,
+  deleteUnidadMedida,
+  getUnidadesMedida,
+  updateUnidadMedida,
+} from "@/modules/inventario/api/ProductosServices";
 
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -29,6 +35,18 @@ const empresa = reactive({
 const impuestos = reactive({
   iva: 13,
   moneda: "CRC",
+});
+const inventario = reactive({
+  lector_codigo_barras: true,
+  prefijo_productos: "",
+});
+const unidades = ref([]);
+const nuevaUnidad = reactive({
+  codigo: "",
+  nombre: "",
+  simbolo: "",
+  permite_decimales: true,
+  estado: true,
 });
 
 const perfil = reactive({
@@ -54,17 +72,21 @@ function mensaje(texto, color = "success") {
 
 async function cargarConfiguracion() {
   try {
-    const [config, currentProfile, roleData] = await Promise.all([
+    const [config, currentProfile, roleData, unitData] = await Promise.all([
       getConfiguracion(),
       getPerfil(),
       getRoles(),
+      getUnidadesMedida({ ordering: "nombre" }),
     ]);
     Object.assign(empresa, config);
     impuestos.iva = Number(config.iva);
     impuestos.moneda = config.moneda;
+    inventario.lector_codigo_barras = config.lector_codigo_barras;
+    inventario.prefijo_productos = config.prefijo_productos;
     perfil.nombre = currentProfile.nombre;
     perfil.correo = currentProfile.correo;
     roles.value = roleData;
+    unidades.value = unitData.results ?? unitData;
     try {
       const userData = await getUsuarios();
       usuarios.value = userData.results ?? userData;
@@ -82,7 +104,7 @@ async function guardarConfiguracion() {
   saving.value = true;
   try {
     await Promise.all([
-      updateConfiguracion({ ...empresa, ...impuestos }),
+      updateConfiguracion({ ...empresa, ...impuestos, ...inventario }),
       updatePerfil({ first_name: perfil.nombre, correo: perfil.correo }),
     ]);
     mensaje("Configuración guardada correctamente.");
@@ -90,6 +112,57 @@ async function guardarConfiguracion() {
     mensaje(error.response?.data?.detail || "No se pudo guardar la configuración.", "error");
   } finally {
     saving.value = false;
+  }
+}
+
+async function agregarUnidad() {
+  if (!nuevaUnidad.codigo || !nuevaUnidad.nombre || !nuevaUnidad.simbolo) {
+    mensaje("Complete el código, nombre y símbolo de la unidad.", "error");
+    return;
+  }
+  try {
+    const unidad = await createUnidadMedida({
+      ...nuevaUnidad,
+      codigo: nuevaUnidad.codigo.trim().toUpperCase(),
+    });
+    unidades.value.push(unidad);
+    Object.assign(nuevaUnidad, {
+      codigo: "",
+      nombre: "",
+      simbolo: "",
+      permite_decimales: true,
+      estado: true,
+    });
+    mensaje("Unidad de medida agregada.");
+  } catch (error) {
+    mensaje(
+      error.response?.data?.codigo?.[0] ||
+        error.response?.data?.nombre?.[0] ||
+        "No se pudo agregar la unidad.",
+      "error"
+    );
+  }
+}
+
+async function guardarUnidad(unidad) {
+  try {
+    await updateUnidadMedida(unidad.id, unidad);
+    mensaje(`Unidad ${unidad.nombre} actualizada.`);
+  } catch {
+    mensaje("No se pudo actualizar la unidad.", "error");
+  }
+}
+
+async function eliminarUnidad(unidad) {
+  try {
+    await deleteUnidadMedida(unidad.id);
+    unidades.value = unidades.value.filter((item) => item.id !== unidad.id);
+    mensaje("Unidad eliminada.");
+  } catch {
+    mensaje(
+      "No se puede eliminar una unidad que ya está asignada a productos. Puede desactivarla.",
+      "error"
+    );
   }
 }
 
@@ -122,7 +195,7 @@ onMounted(cargarConfiguracion);
 
     <v-row>
       <v-col cols="12" lg="6">
-        <v-card>
+        <v-card class="config-card">
           <v-card-title>Datos de la empresa</v-card-title>
           <v-card-text>
             <v-row>
@@ -142,6 +215,72 @@ onMounted(cargarConfiguracion);
                 <v-textarea v-model="empresa.direccion" label="Dirección" variant="outlined" density="compact" rows="2" />
               </v-col>
             </v-row>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" lg="6">
+        <v-card class="config-card">
+          <v-card-title>Inventario y códigos</v-card-title>
+          <v-card-text>
+            <v-row>
+              <v-col cols="12">
+                <v-text-field
+                  v-model="inventario.prefijo_productos"
+                  label="Prefijo general de productos"
+                  hint="Opcional. Ejemplo: QLS genera QLS-L-0001."
+                  persistent-hint
+                  maxlength="8"
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
+              <v-col cols="12">
+                <v-switch
+                  v-model="inventario.lector_codigo_barras"
+                  label="Habilitar uso de lectores de código de barras"
+                  color="primary"
+                  hide-details
+                />
+              </v-col>
+            </v-row>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12">
+        <v-card class="config-card">
+          <v-card-title>Unidades de medida</v-card-title>
+          <v-card-subtitle>
+            Configure gramos, kilogramos, unidades, paquetes u otras medidas del negocio.
+          </v-card-subtitle>
+          <v-card-text>
+            <div class="units-list">
+              <div
+                v-for="unidad in unidades"
+                :key="unidad.id"
+                class="unit-row"
+              >
+                <v-text-field v-model="unidad.codigo" label="Código" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model="unidad.nombre" label="Nombre" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model="unidad.simbolo" label="Símbolo" variant="outlined" density="compact" hide-details />
+                <v-checkbox v-model="unidad.permite_decimales" label="Decimales" hide-details />
+                <v-switch v-model="unidad.estado" label="Activa" color="primary" hide-details />
+                <div class="unit-actions">
+                  <v-btn icon="mdi-content-save" variant="tonal" color="primary" size="small" @click="guardarUnidad(unidad)" />
+                  <v-btn icon="mdi-delete" variant="text" color="error" size="small" @click="eliminarUnidad(unidad)" />
+                </div>
+              </div>
+
+              <div class="unit-row unit-row--new">
+                <v-text-field v-model="nuevaUnidad.codigo" label="Código nuevo" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model="nuevaUnidad.nombre" label="Nombre nuevo" variant="outlined" density="compact" hide-details />
+                <v-text-field v-model="nuevaUnidad.simbolo" label="Símbolo" variant="outlined" density="compact" hide-details />
+                <v-checkbox v-model="nuevaUnidad.permite_decimales" label="Decimales" hide-details />
+                <v-switch v-model="nuevaUnidad.estado" label="Activa" color="primary" hide-details />
+                <v-btn color="primary" prepend-icon="mdi-plus" @click="agregarUnidad">Agregar</v-btn>
+              </div>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -272,3 +411,53 @@ onMounted(cargarConfiguracion);
     </v-snackbar>
   </section>
 </template>
+
+<style scoped>
+.config-card {
+  height: 100%;
+  overflow: hidden;
+}
+
+.units-list {
+  display: grid;
+  gap: 12px;
+}
+
+.unit-row {
+  align-items: center;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 100px minmax(180px, 1.5fr) minmax(100px, 0.7fr) 120px 100px auto;
+  padding: 12px;
+}
+
+.unit-row--new {
+  background: rgba(var(--v-theme-primary), 0.06);
+  border-color: rgba(var(--v-theme-primary), 0.25);
+}
+
+.unit-actions {
+  display: flex;
+  gap: 4px;
+}
+
+@media (max-width: 1100px) {
+  .unit-row {
+    grid-template-columns: 100px 1fr 120px;
+  }
+
+  .unit-row > :nth-child(4),
+  .unit-row > :nth-child(5),
+  .unit-row > :nth-child(6) {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 599px) {
+  .unit-row {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

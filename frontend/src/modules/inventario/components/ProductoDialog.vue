@@ -15,6 +15,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  unidades: {
+    type: Array,
+    default: () => [],
+  },
   editing: {
     type: Boolean,
     default: false,
@@ -39,14 +43,14 @@ const title = computed(() =>
 );
 
 const form = reactive({
-  codigo: "",
+  codigo_barras: "",
   nombre: "",
   descripcion: "",
   categoria: null,
   costo_promedio: 0,
   precio_venta: 0,
   stock_minimo: 0,
-  unidad_medida: "KG",
+  unidad_medida: null,
   estado: true,
 });
 
@@ -63,14 +67,18 @@ watch(
   () => props.producto,
   (nuevo) => {
     Object.assign(form, {
-      codigo: nuevo?.codigo ?? "",
+      codigo_barras: nuevo?.codigo_barras ?? "",
       nombre: nuevo?.nombre ?? "",
       descripcion: nuevo?.descripcion ?? "",
       categoria: nuevo?.categoria ?? null,
       costo_promedio: nuevo?.costo_promedio ?? 0,
       precio_venta: nuevo?.precio_venta ?? 0,
       stock_minimo: nuevo?.stock_minimo ?? 0,
-      unidad_medida: nuevo?.unidad_medida ?? "KG",
+      unidad_medida:
+        nuevo?.unidad_medida ??
+        props.unidades.find((unidad) => unidad.codigo === "UND")?.id ??
+        props.unidades[0]?.id ??
+        null,
       estado: nuevo?.estado ?? true,
     });
   },
@@ -100,13 +108,19 @@ async function guardar() {
   >
     <v-form ref="formRef">
       <v-row>
-        <v-col cols="12" sm="6">
+        <v-col cols="12">
+          <v-alert type="info" variant="tonal" density="compact">
+            El código interno se generará con el código de la categoría.
+          </v-alert>
+        </v-col>
+
+        <v-col v-if="editing" cols="12" sm="6">
           <v-text-field
-            v-model="form.codigo"
-            label="Código"
+            :model-value="producto.codigo"
+            label="Código interno generado"
             variant="outlined"
             density="compact"
-            :rules="[rules.required]"
+            readonly
           />
         </v-col>
 
@@ -120,7 +134,20 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12">
+        <v-col cols="12" sm="6">
+          <v-text-field
+            v-model="form.codigo_barras"
+            label="Código de barras"
+            hint="Escanee ahora o déjelo vacío para usar el código interno."
+            persistent-hint
+            prepend-inner-icon="mdi-barcode"
+            variant="outlined"
+            density="compact"
+            autocomplete="off"
+          />
+        </v-col>
+
+        <v-col cols="12" sm="6">
           <v-textarea
             v-model="form.descripcion"
             label="Descripción"
@@ -146,11 +173,9 @@ async function guardar() {
         <v-col cols="12" sm="6">
           <v-select
             v-model="form.unidad_medida"
-            :items="[
-              { title: 'Kilogramo', value: 'KG' },
-              { title: 'Unidad', value: 'UND' },
-              { title: 'Paquete', value: 'PAQ' },
-            ]"
+            :items="unidades.filter((unidad) => unidad.estado)"
+            item-title="nombre"
+            item-value="id"
             label="Unidad de medida"
             variant="outlined"
             density="compact"
