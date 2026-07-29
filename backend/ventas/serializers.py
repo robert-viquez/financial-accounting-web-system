@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 from .models import Venta, DetalleVenta
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
@@ -20,6 +21,18 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
             "inventario_descontado",
         ]
         read_only_fields = ["subtotal", "inventario_descontado"]
+
+    def validate(self, attrs):
+        detalle = DetalleVenta(**attrs)
+        try:
+            from .services import VentaService
+            VentaService.validar_detalle_venta(detalle)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                raise serializers.ValidationError(exc.messages) from exc
+            raise
+        return attrs
 
 
 class VentaSerializer(serializers.ModelSerializer):
@@ -67,6 +80,7 @@ class VentaSerializer(serializers.ModelSerializer):
             "estado",
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         detalles_data = validated_data.pop("detalles")
         usuario = self.context["request"].user

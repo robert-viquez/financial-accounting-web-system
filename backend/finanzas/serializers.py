@@ -50,6 +50,15 @@ class PagoClienteSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["fecha"]
 
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                raise serializers.ValidationError(exc.messages) from exc
+            raise
+
 
 class CuentaPorPagarSerializer(serializers.ModelSerializer):
     compra_numero = serializers.CharField(
@@ -97,3 +106,12 @@ class PagoProveedorSerializer(serializers.ModelSerializer):
             "observaciones",
         ]
         read_only_fields = ["fecha"]
+
+    def create(self, validated_data):
+        try:
+            return super().create(validated_data)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                raise serializers.ValidationError(exc.messages) from exc
+            raise

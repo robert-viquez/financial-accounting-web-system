@@ -1,4 +1,6 @@
-from django.db import models
+from decimal import Decimal
+
+from django.db import models, transaction
 
 from terceros.models import Cliente, MedioPago
 from ventas.models import Venta
@@ -59,12 +61,18 @@ class PagoCliente(models.Model):
     def save(self, *args, **kwargs):
         from .services import FinanzasService
 
+        self.monto = Decimal(str(self.monto))
         es_nuevo = self.pk is None
-        FinanzasService.validar_pago_cliente(self)
+        if not es_nuevo:
+            FinanzasService.validar_pago_cliente(self)
+            return super().save(*args, **kwargs)
 
-        super().save(*args, **kwargs)
-
-        if es_nuevo:
+        with transaction.atomic():
+            self.cuenta_por_cobrar = CuentaPorCobrar.objects.select_for_update().get(
+                pk=self.cuenta_por_cobrar_id
+            )
+            FinanzasService.validar_pago_cliente(self)
+            super().save(*args, **kwargs)
             FinanzasService.aplicar_pago_cliente(self)
 
     def __str__(self):
@@ -123,12 +131,18 @@ class PagoProveedor(models.Model):
     def save(self, *args, **kwargs):
         from .services import FinanzasService
 
+        self.monto = Decimal(str(self.monto))
         es_nuevo = self.pk is None
-        FinanzasService.validar_pago_proveedor(self)
+        if not es_nuevo:
+            FinanzasService.validar_pago_proveedor(self)
+            return super().save(*args, **kwargs)
 
-        super().save(*args, **kwargs)
-
-        if es_nuevo:
+        with transaction.atomic():
+            self.cuenta_por_pagar = CuentaPorPagar.objects.select_for_update().get(
+                pk=self.cuenta_por_pagar_id
+            )
+            FinanzasService.validar_pago_proveedor(self)
+            super().save(*args, **kwargs)
             FinanzasService.aplicar_pago_proveedor(self)
 
     def __str__(self):

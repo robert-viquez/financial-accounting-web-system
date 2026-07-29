@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from django.db import transaction
 
 from .models import Compra, DetalleCompra
 
@@ -21,6 +22,18 @@ class DetalleCompraSerializer(serializers.ModelSerializer):
             "inventario_actualizado",
         ]
         read_only_fields = ["subtotal", "inventario_actualizado"]
+
+    def validate(self, attrs):
+        detalle = DetalleCompra(**attrs)
+        try:
+            from .services import CompraService
+            CompraService.validar_detalle_compra(detalle)
+        except Exception as exc:
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            if isinstance(exc, DjangoValidationError):
+                raise serializers.ValidationError(exc.messages) from exc
+            raise
+        return attrs
 
 
 class CompraSerializer(serializers.ModelSerializer):
@@ -61,6 +74,7 @@ class CompraSerializer(serializers.ModelSerializer):
             "estado",
         ]
 
+    @transaction.atomic
     def create(self, validated_data):
         detalles_data = validated_data.pop("detalles")
         usuario = self.context["request"].user
