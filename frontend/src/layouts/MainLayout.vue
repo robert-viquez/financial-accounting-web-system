@@ -36,6 +36,7 @@ const menuItems = [
   { title: "Ventas", icon: "mdi-cash-register", to: "/ventas" },
   { title: "CxC", icon: "mdi-cash-clock", to: "/cuentas-cobrar" },
   { title: "CxP", icon: "mdi-credit-card-clock", to: "/cuentas-pagar" },
+  { title: "Contabilidad", icon: "mdi-book-open-page-variant", to: "/contabilidad" },
   { title: "Reportes", icon: "mdi-chart-box", to: "/reportes" },
   { title: "Configuración", icon: "mdi-cog", to: "/configuracion" },
 ];

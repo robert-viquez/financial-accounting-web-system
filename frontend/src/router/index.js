@@ -76,6 +76,12 @@ const routes = [
         meta: { title: "Cuentas por pagar" },
       },
       {
+        path: "contabilidad",
+        component: () =>
+          import("@/modules/contabilidad/pages/ContabilidadView.vue"),
+        meta: { title: "Contabilidad" },
+      },
+      {
         path: "reportes",
         component: () => import("@/modules/reportes/pages/ReportesView.vue"),
         meta: { title: "Reportes" },

@@ -2,14 +2,15 @@
 import { computed, onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import { fetchAllPages } from "@/api/pagination";
 import { getCompras } from "@/modules/compras/api/ComprasServices";
 import {
   getCuentasPorCobrar,
   getCuentasPorPagar,
 } from "@/modules/finanzas/api/finanzasService";
-import { getMovimientos } from "@/modules/inventario/api/MovimientosServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 import { getVentas } from "@/modules/ventas/api/ventasService";
+import { getReporteContable } from "@/modules/contabilidad/api/contabilidadService";
 
 const loading = ref(false);
 const rows = ref([]);
@@ -42,7 +43,7 @@ const headers = computed(() => {
     inventario: ["Código", "Producto", "Stock", "Costo", "Precio"],
     cxc: ["Venta", "Cliente", "Vence", "Estado", "Saldo"],
     cxp: ["Compra", "Proveedor", "Vence", "Estado", "Saldo"],
-    libro_diario: ["Fecha", "Producto", "Tipo", "Cantidad", "Descripción"],
+    libro_diario: ["Fecha", "Asiento", "Cuenta", "Descripción", "Debe", "Haber"],
     libro_mayor: ["Cuenta", "Debe", "Haber", "Saldo"],
     balance_general: ["Concepto", "Monto"],
     estado_resultados: ["Concepto", "Monto"],
@@ -55,10 +56,6 @@ const headers = computed(() => {
 const tituloReporte = computed(
   () => reportes.find((reporte) => reporte.value === filters.reporte)?.title
 );
-
-function normalizar(response) {
-  return response.results ?? response;
-}
 
 function numero(value) {
   return Number(value || 0);
@@ -93,7 +90,7 @@ async function cargarReporte() {
 
   try {
     if (filters.reporte === "ventas") {
-      const data = filtrarPorFecha(normalizar(await getVentas({ ordering: "-fecha" })), "fecha");
+      const data = filtrarPorFecha(await fetchAllPages(getVentas, { ordering: "-fecha" }), "fecha");
       rows.value = data.map((venta) => [
         formatoFecha(venta.fecha),
         venta.numero_comprobante,
@@ -102,7 +99,7 @@ async function cargarReporte() {
         formatoCRC(venta.total),
       ]);
     } else if (filters.reporte === "compras") {
-      const data = filtrarPorFecha(normalizar(await getCompras({ ordering: "-fecha" })), "fecha");
+      const data = filtrarPorFecha(await fetchAllPages(getCompras, { ordering: "-fecha" }), "fecha");
       rows.value = data.map((compra) => [
         formatoFecha(compra.fecha),
         compra.numero_factura,
@@ -111,7 +108,7 @@ async function cargarReporte() {
         formatoCRC(compra.total),
       ]);
     } else if (filters.reporte === "inventario") {
-      const data = normalizar(await getProductos({ ordering: "nombre" }));
+      const data = await fetchAllPages(getProductos, { ordering: "nombre" });
       rows.value = data.map((producto) => [
         producto.codigo,
         producto.nombre,
@@ -120,7 +117,7 @@ async function cargarReporte() {
         formatoCRC(producto.precio_venta),
       ]);
     } else if (filters.reporte === "cxc") {
-      const data = normalizar(await getCuentasPorCobrar({ ordering: "fecha_vencimiento" }));
+      const data = await fetchAllPages(getCuentasPorCobrar, { ordering: "fecha_vencimiento" });
       rows.value = data.map((cuenta) => [
         cuenta.venta_numero,
         cuenta.cliente_nombre,
@@ -129,7 +126,7 @@ async function cargarReporte() {
         formatoCRC(cuenta.saldo),
       ]);
     } else if (filters.reporte === "cxp") {
-      const data = normalizar(await getCuentasPorPagar({ ordering: "fecha_vencimiento" }));
+      const data = await fetchAllPages(getCuentasPorPagar, { ordering: "fecha_vencimiento" });
       rows.value = data.map((cuenta) => [
         cuenta.compra_numero,
         cuenta.proveedor_nombre,
@@ -137,17 +134,8 @@ async function cargarReporte() {
         cuenta.estado,
         formatoCRC(cuenta.saldo),
       ]);
-    } else if (filters.reporte === "libro_diario") {
-      const data = filtrarPorFecha(normalizar(await getMovimientos({ ordering: "-fecha" })), "fecha");
-      rows.value = data.map((movimiento) => [
-        formatoFecha(movimiento.fecha),
-        movimiento.producto_nombre,
-        movimiento.tipo,
-        movimiento.cantidad,
-        movimiento.descripcion || "-",
-      ]);
     } else {
-      rows.value = generarReporteContableBasico(filters.reporte);
+      await cargarReporteContable();
     }
   } catch (error) {
     snackbarText.value = "No se pudo generar el reporte.";
@@ -157,29 +145,40 @@ async function cargarReporte() {
   }
 }
 
-function generarReporteContableBasico(tipo) {
-  const plantillas = {
-    balance_general: [
-      ["Activos", formatoCRC(0)],
-      ["Pasivos", formatoCRC(0)],
-      ["Patrimonio", formatoCRC(0)],
-    ],
-    estado_resultados: [
-      ["Ingresos", formatoCRC(0)],
-      ["Costos", formatoCRC(0)],
-      ["Utilidad neta", formatoCRC(0)],
-    ],
-    libro_mayor: [
-      ["Caja", formatoCRC(0), formatoCRC(0), formatoCRC(0)],
-      ["Inventario", formatoCRC(0), formatoCRC(0), formatoCRC(0)],
-    ],
-    balance_comprobacion: [
-      ["Caja", formatoCRC(0), formatoCRC(0)],
-      ["Ventas", formatoCRC(0), formatoCRC(0)],
-    ],
+async function cargarReporteContable() {
+  const endpoint = {
+    libro_diario: "libro-diario",
+    libro_mayor: "libro-mayor",
+    balance_general: "balance-general",
+    estado_resultados: "estado-resultados",
+    balance_comprobacion: "balance-comprobacion",
   };
+  const data = await getReporteContable(endpoint[filters.reporte], {
+    desde: filters.desde || undefined,
+    hasta: filters.hasta || undefined,
+  });
 
-  return plantillas[tipo] || [];
+  if (filters.reporte === "libro_diario") {
+    rows.value = data.flatMap((asiento) =>
+      asiento.detalles.map((detalle) => [
+        formatoFecha(asiento.fecha),
+        asiento.numero,
+        `${detalle.cuenta_codigo} - ${detalle.cuenta_nombre}`,
+        detalle.descripcion || asiento.descripcion,
+        formatoCRC(detalle.debe),
+        formatoCRC(detalle.haber),
+      ])
+    );
+  } else if (["libro_mayor", "balance_comprobacion"].includes(filters.reporte)) {
+    rows.value = data.map((fila) => [
+      `${fila.cuenta__codigo} - ${fila.cuenta__nombre}`,
+      formatoCRC(fila.debe),
+      formatoCRC(fila.haber),
+      ...(filters.reporte === "libro_mayor" ? [formatoCRC(fila.saldo)] : []),
+    ]);
+  } else {
+    rows.value = data.map((fila) => [fila.concepto, formatoCRC(fila.monto)]);
+  }
 }
 
 function descargarArchivo(nombre, contenido, tipo) {
