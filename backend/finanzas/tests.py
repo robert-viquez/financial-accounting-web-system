@@ -95,3 +95,75 @@ class FinanzasTests(AccountingAPITestCase):
         cuenta.refresh_from_db()
         self.assertEqual(cuenta.saldo, Decimal("40.00"))
         self.assertEqual(PagoCliente.objects.count(), 1)
+
+    def test_cuentas_y_pagos_no_permiten_edicion_o_eliminacion_directa(self):
+        cuenta = self.crear_cxc()
+        pago = PagoCliente.objects.create(
+            cuenta_por_cobrar=cuenta,
+            medio_pago=self.medio_pago,
+            monto="10.00",
+        )
+        self.assertEqual(
+            self.client.patch(
+                f"/api/cuentas-por-cobrar/{cuenta.pk}/",
+                {"saldo": "0.00"},
+                format="json",
+            ).status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertEqual(
+            self.client.delete(f"/api/cuentas-por-cobrar/{cuenta.pk}/").status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertEqual(
+            self.client.patch(
+                f"/api/pagos-clientes/{pago.pk}/",
+                {"monto": "1.00"},
+                format="json",
+            ).status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+        self.assertEqual(
+            self.client.delete(f"/api/pagos-clientes/{pago.pk}/").status_code,
+            status.HTTP_405_METHOD_NOT_ALLOWED,
+        )
+
+    def test_no_anula_documento_con_pagos_registrados(self):
+        venta_response = self.client.post(
+            "/api/ventas/",
+            self.venta_payload(tipo="CREDITO"),
+            format="json",
+        )
+        cuenta = CuentaPorCobrar.objects.get(venta_id=venta_response.data["id"])
+        PagoCliente.objects.create(
+            cuenta_por_cobrar=cuenta,
+            medio_pago=self.medio_pago,
+            monto="5.00",
+        )
+        response = self.client.post(
+            f"/api/ventas/{venta_response.data['id']}/anular/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        cuenta.refresh_from_db()
+        self.assertEqual(cuenta.estado, "PARCIAL")
+
+    def test_anular_pago_restituye_saldo_y_anula_asiento(self):
+        cuenta = self.crear_cxc("100.00")
+        response = self.client.post(
+            "/api/pagos-clientes/",
+            {
+                "cuenta_por_cobrar": cuenta.pk,
+                "medio_pago": self.medio_pago.pk,
+                "monto": "40.00",
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        anulacion = self.client.post(
+            f"/api/pagos-clientes/{response.data['id']}/anular/"
+        )
+        self.assertEqual(anulacion.status_code, status.HTTP_200_OK)
+        cuenta.refresh_from_db()
+        self.assertEqual(cuenta.saldo, Decimal("100.00"))
+        self.assertEqual(cuenta.estado, "PENDIENTE")
+        self.assertEqual(anulacion.data["estado"], "ANULADO")

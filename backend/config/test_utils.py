@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from rest_framework.test import APITestCase
 
 from inventario.models import CategoriaProducto, Producto
@@ -10,6 +10,8 @@ from terceros.models import Cliente, MedioPago, Proveedor
 class AccountingAPITestCase(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user("tester", password="secret123")
+        operaciones, _ = Group.objects.get_or_create(name="Operaciones")
+        self.user.groups.add(operaciones)
         self.client.force_authenticate(self.user)
         self.categoria = CategoriaProducto.objects.create(nombre="Lácteos")
         self.producto = self.crear_producto("P-001", "Queso", "20.00")

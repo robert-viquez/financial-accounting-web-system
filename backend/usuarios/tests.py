@@ -1,5 +1,6 @@
 from rest_framework import status
 from rest_framework.test import APITestCase
+from django.contrib.auth.models import User
 
 
 class AutenticacionTests(APITestCase):
@@ -13,3 +14,43 @@ class AutenticacionTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
         self.assertNotIn("access", response.data)
+
+    def test_perfil_y_cambio_real_de_password(self):
+        user = User.objects.create_user("perfil", password="ClaveInicial123!")
+        self.client.force_authenticate(user)
+        profile = self.client.patch(
+            "/api/mi-perfil/",
+            {"first_name": "Ana", "correo": "ana@example.com"},
+            format="json",
+        )
+        self.assertEqual(profile.status_code, status.HTTP_200_OK)
+        changed = self.client.post(
+            "/api/cambiar-password/",
+            {"actual": "ClaveInicial123!", "nueva": "NuevaClave456!"},
+            format="json",
+        )
+        self.assertEqual(changed.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertTrue(user.check_password("NuevaClave456!"))
+
+    def test_configuracion_persistente_solo_administrador_modifica(self):
+        user = User.objects.create_user("normal", password="ClaveInicial123!")
+        self.client.force_authenticate(user)
+        self.assertEqual(
+            self.client.get("/api/configuracion-empresa/").status_code,
+            status.HTTP_200_OK,
+        )
+        denied = self.client.patch(
+            "/api/configuracion-empresa/",
+            {"nombre": "Empresa"},
+            format="json",
+        )
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+        user.is_staff = True
+        user.save(update_fields=["is_staff"])
+        saved = self.client.patch(
+            "/api/configuracion-empresa/",
+            {"nombre": "Empresa"},
+            format="json",
+        )
+        self.assertEqual(saved.status_code, status.HTTP_200_OK)
