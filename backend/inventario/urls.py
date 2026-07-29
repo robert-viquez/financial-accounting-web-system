@@ -5,12 +5,14 @@ from .views import (
     CategoriaProductoViewSet,
     ProductoViewSet,
     MovimientoInventarioViewSet,
+    UnidadMedidaViewSet,
 )
 
 router = DefaultRouter()
 router.register(r"categorias-producto", CategoriaProductoViewSet)
 router.register(r"productos", ProductoViewSet)
 router.register(r"movimientos-inventario", MovimientoInventarioViewSet)
+router.register(r"unidades-medida", UnidadMedidaViewSet)
 
 urlpatterns = [
     path("", include(router.urls)),
