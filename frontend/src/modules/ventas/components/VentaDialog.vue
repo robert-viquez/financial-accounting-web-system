@@ -1,6 +1,8 @@
 <script setup>
 import { computed, reactive, ref, watch } from "vue";
 import BaseCrudDialog from "@/components/common/BaseCrudDialog.vue";
+import BarcodeScannerInput from "@/components/common/BarcodeScannerInput.vue";
+import { getProductoPorCodigo } from "@/modules/inventario/api/ProductosServices";
 
 const props = defineProps({
   modelValue: Boolean,
@@ -17,12 +19,25 @@ const props = defineProps({
     default: () => [],
   },
   loading: Boolean,
+  lectorHabilitado: {
+    type: Boolean,
+    default: true,
+  },
 });
 
 const emit = defineEmits(["update:modelValue", "save", "validation-error"]);
 
 const formRef = ref(null);
 const errorMessage = ref("");
+const scanning = ref(false);
+const productosEscaneados = ref([]);
+const catalogoProductos = computed(() => {
+  const productos = [...props.productos];
+  for (const producto of productosEscaneados.value) {
+    if (!productos.some((item) => item.id === producto.id)) productos.push(producto);
+  }
+  return productos;
+});
 
 const dialog = computed({
   get: () => props.modelValue,
@@ -62,9 +77,14 @@ watch(
 
 function resetForm() {
   errorMessage.value = "";
-  form.cliente = null;
-  form.medio_pago = null;
-  form.numero_comprobante = "";
+  form.cliente =
+    props.clientes.find(
+      (cliente) => cliente.nombre?.trim().toLowerCase() === "estimado cliente"
+    )?.id ?? null;
+  form.medio_pago =
+    props.mediosPago.find(
+      (medio) => medio.nombre?.trim().toLowerCase() === "efectivo"
+    )?.id ?? props.mediosPago[0]?.id ?? null;
   form.tipo_venta = "CONTADO";
   form.descuento = 0;
   form.observaciones = "";
@@ -76,6 +96,7 @@ function resetForm() {
       descuento: 0,
     },
   ];
+  productosEscaneados.value = [];
 }
 
 function agregarDetalle() {
@@ -93,7 +114,42 @@ function eliminarDetalle(index) {
 }
 
 function productoSeleccionado(productoId) {
-  return props.productos.find((producto) => producto.id === productoId);
+  return catalogoProductos.value.find((producto) => producto.id === productoId);
+}
+
+async function escanearProducto(codigo) {
+  scanning.value = true;
+  try {
+    const producto = await getProductoPorCodigo(codigo);
+    if (!productosEscaneados.value.some((item) => item.id === producto.id)) {
+      productosEscaneados.value.push(producto);
+    }
+    const existente = form.detalles.find(
+      (detalle) => detalle.producto === producto.id
+    );
+    if (existente) {
+      existente.cantidad = Number(existente.cantidad || 0) + 1;
+    } else {
+      const vacio = form.detalles.find((detalle) => !detalle.producto);
+      const detalle = vacio ?? {
+        producto: null,
+        cantidad: 1,
+        precio_unitario: 0,
+        descuento: 0,
+      };
+      detalle.producto = producto.id;
+      detalle.cantidad = 1;
+      detalle.precio_unitario = Number(producto.precio_venta || 0);
+      if (!vacio) form.detalles.push(detalle);
+    }
+    errorMessage.value = "";
+  } catch (error) {
+    mostrarErrorValidacion(
+      error.response?.data?.detail || `No se encontró el código ${codigo}.`
+    );
+  } finally {
+    scanning.value = false;
+  }
 }
 
 function stockDisponible(productoId) {
@@ -214,7 +270,6 @@ async function guardar() {
   emit("save", {
     cliente: form.cliente,
     medio_pago: form.medio_pago,
-    numero_comprobante: form.numero_comprobante,
     tipo_venta: form.tipo_venta,
     descuento: Number(form.descuento || 0).toFixed(2),
     observaciones: form.observaciones,
@@ -238,6 +293,15 @@ async function guardar() {
   >
     <v-form ref="formRef">
       <v-alert
+        class="mb-4"
+        type="info"
+        variant="tonal"
+        density="compact"
+        icon="mdi-information-outline"
+      >
+        El comprobante se asignará automáticamente al guardar la venta.
+      </v-alert>
+      <v-alert
         v-if="errorMessage"
         class="mb-4"
         type="error"
@@ -247,21 +311,21 @@ async function guardar() {
         {{ errorMessage }}
       </v-alert>
 
-      <v-row>
-        <v-col cols="12" md="3">
+      <v-row dense>
+        <v-col cols="12" sm="6" lg="4">
           <v-select
             v-model="form.cliente"
             :items="clientes"
             item-title="nombre"
             item-value="id"
-            label="Cliente"
+            label="Cliente (predeterminado: Estimado Cliente)"
             variant="outlined"
             density="compact"
             :rules="[rules.required]"
           />
         </v-col>
 
-        <v-col cols="12" md="3">
+        <v-col cols="12" sm="6" lg="4">
           <v-select
             v-model="form.medio_pago"
             :items="mediosPago"
@@ -274,17 +338,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="3">
-          <v-text-field
-            v-model="form.numero_comprobante"
-            label="Número de comprobante"
-            variant="outlined"
-            density="compact"
-            :rules="[rules.required]"
-          />
-        </v-col>
-
-        <v-col cols="12" md="3">
+        <v-col cols="12" sm="6" lg="4">
           <v-select
             v-model="form.tipo_venta"
             :items="[
@@ -298,7 +352,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="3">
+        <v-col cols="12" sm="6" lg="4">
           <v-text-field
             v-model.number="form.descuento"
             label="Descuento general"
@@ -310,7 +364,7 @@ async function guardar() {
           />
         </v-col>
 
-        <v-col cols="12" md="9">
+        <v-col cols="12" lg="8">
           <v-textarea
             v-model="form.observaciones"
             label="Observaciones"
@@ -323,8 +377,27 @@ async function guardar() {
 
       <v-divider class="my-4" />
 
-      <div class="d-flex align-center mb-3">
-        <h3 class="text-subtitle-1 font-weight-bold">Detalle de venta</h3>
+      <div v-if="lectorHabilitado" class="scanner-sale mb-4">
+        <div>
+          <strong>Agregar con lector</strong>
+          <p class="text-caption text-medium-emphasis mb-0">
+            Cada lectura agrega una unidad; vuelva a escanear para aumentar la cantidad.
+          </p>
+        </div>
+        <BarcodeScannerInput
+          label="Escanear producto"
+          :loading="scanning"
+          @scan="escanearProducto"
+        />
+      </div>
+
+      <div class="sale-section-header">
+        <div>
+          <h3 class="text-subtitle-1 font-weight-bold">Productos de la venta</h3>
+          <p class="text-caption text-medium-emphasis mb-0">
+            Seleccione el producto; el precio se completa automáticamente.
+          </p>
+        </div>
 
         <v-spacer />
 
@@ -338,7 +411,7 @@ async function guardar() {
         </v-btn>
       </div>
 
-      <v-table>
+      <v-table class="sale-table">
         <thead>
           <tr>
             <th>Producto</th>
@@ -356,10 +429,10 @@ async function guardar() {
             <td>
               <v-select
                 v-model="detalle.producto"
-                :items="productos"
+                :items="catalogoProductos"
                 item-title="nombre"
                 item-value="id"
-                label="Producto"
+                label="Buscar producto"
                 variant="outlined"
                 density="compact"
                 hide-details
@@ -435,9 +508,75 @@ async function guardar() {
 
       <v-divider class="my-4" />
 
-      <div class="d-flex justify-end">
-        <h2 class="text-h6">Total: {{ formatoCRC(total) }}</h2>
+      <div class="sale-total" aria-live="polite">
+        <span>Total a cobrar</span>
+        <strong>{{ formatoCRC(total) }}</strong>
       </div>
     </v-form>
   </BaseCrudDialog>
 </template>
+
+<style scoped>
+.sale-section-header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sale-table :deep(th) {
+  white-space: nowrap;
+}
+
+.scanner-sale {
+  align-items: center;
+  background: rgba(var(--v-theme-primary), 0.07);
+  border: 1px solid rgba(var(--v-theme-primary), 0.22);
+  border-radius: 12px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr);
+  padding: 16px;
+}
+
+.sale-table :deep(td) {
+  padding: 8px 6px;
+}
+
+.sale-total {
+  align-items: center;
+  background: rgb(var(--v-theme-primary));
+  border-radius: 12px;
+  color: rgb(var(--v-theme-on-primary));
+  display: flex;
+  font-size: 1.05rem;
+  gap: 24px;
+  justify-content: flex-end;
+  margin-left: auto;
+  padding: 14px 20px;
+  width: min(100%, 420px);
+}
+
+.sale-total strong {
+  font-size: 1.45rem;
+}
+
+@media (max-width: 700px) {
+  .scanner-sale {
+    grid-template-columns: 1fr;
+  }
+  .sale-section-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sale-section-header .v-btn {
+    width: 100%;
+  }
+
+  .sale-total {
+    justify-content: space-between;
+  }
+}
+</style>

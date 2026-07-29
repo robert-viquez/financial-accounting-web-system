@@ -13,6 +13,8 @@ class ConfiguracionEmpresa(models.Model):
         choices=[("CRC", "Colón costarricense"), ("USD", "Dólar estadounidense")],
         default="CRC",
     )
+    lector_codigo_barras = models.BooleanField(default=True)
+    prefijo_productos = models.CharField(max_length=8, blank=True, default="")
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:

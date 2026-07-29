@@ -5,6 +5,7 @@ import { useDisplay, useTheme } from "vuetify";
 import { storeToRefs } from "pinia";
 import { logout } from "@/modules/auth/authService";
 import { useUiStore } from "@/stores/ui";
+import { getConfiguracion } from "@/modules/configuracion/api/configuracionService";
 
 const router = useRouter();
 const route = useRoute();
@@ -13,6 +14,8 @@ const theme = useTheme();
 const uiStore = useUiStore();
 const { isDark } = storeToRefs(uiStore);
 const drawer = ref(true);
+const rail = ref(false);
+const empresaNombre = ref("Sistema financiero-contable");
 
 const isMobile = computed(() => display.smAndDown.value);
 const isDesktop = computed(() => display.mdAndUp.value);
@@ -25,21 +28,47 @@ const breadcrumbs = computed(() => [
   },
 ]);
 
-const menuItems = [
-  { title: "Dashboard", icon: "mdi-view-dashboard", to: "/dashboard" },
-  { title: "Clientes", icon: "mdi-account-group", to: "/clientes" },
-  { title: "Proveedores", icon: "mdi-truck", to: "/proveedores" },
-  { title: "Inventario", icon: "mdi-package-variant", to: "/inventario" },
-  { title: "Movimientos", icon: "mdi-swap-horizontal", to: "/movimientos-inventario" },
-  { title: "Categorías", icon: "mdi-shape", to: "/categorias" },
-  { title: "Compras", icon: "mdi-cart-arrow-down", to: "/compras" },
-  { title: "Ventas", icon: "mdi-cash-register", to: "/ventas" },
-  { title: "CxC", icon: "mdi-cash-clock", to: "/cuentas-cobrar" },
-  { title: "CxP", icon: "mdi-credit-card-clock", to: "/cuentas-pagar" },
-  { title: "Contabilidad", icon: "mdi-book-open-page-variant", to: "/contabilidad" },
+const menuGroups = [
+  {
+    title: "Operaciones",
+    icon: "mdi-storefront-outline",
+    items: [
+      { title: "Ventas", icon: "mdi-cash-register", to: "/ventas" },
+      { title: "Compras", icon: "mdi-cart-arrow-down", to: "/compras" },
+      { title: "Clientes", icon: "mdi-account-group", to: "/clientes" },
+      { title: "Proveedores", icon: "mdi-truck", to: "/proveedores" },
+    ],
+  },
+  {
+    title: "Inventario",
+    icon: "mdi-package-variant",
+    items: [
+      { title: "Productos", icon: "mdi-package-variant", to: "/inventario" },
+      { title: "Movimientos", icon: "mdi-swap-horizontal", to: "/movimientos-inventario" },
+      { title: "Categorías", icon: "mdi-shape", to: "/categorias" },
+    ],
+  },
+  {
+    title: "Contabilidad",
+    icon: "mdi-book-open-page-variant",
+    items: [
+      { title: "Resumen contable", icon: "mdi-book-open-page-variant", to: "/contabilidad" },
+      { title: "Cuentas por cobrar", icon: "mdi-cash-clock", to: "/cuentas-cobrar" },
+      { title: "Cuentas por pagar", icon: "mdi-credit-card-clock", to: "/cuentas-pagar" },
+    ],
+  },
+];
+
+const standaloneItems = [
+  { title: "Inicio", icon: "mdi-view-dashboard", to: "/dashboard" },
   { title: "Reportes", icon: "mdi-chart-box", to: "/reportes" },
   { title: "Configuración", icon: "mdi-cog", to: "/configuracion" },
 ];
+
+function toggleMenu() {
+  if (isMobile.value) drawer.value = !drawer.value;
+  else rail.value = !rail.value;
+}
 
 function handleLogout() {
   logout();
@@ -55,7 +84,7 @@ function handleShortcut(event) {
 
   if (event.ctrlKey && key === "b") {
     event.preventDefault();
-    drawer.value = !drawer.value;
+    toggleMenu();
   }
 
   if (event.ctrlKey && key === "d") {
@@ -91,8 +120,14 @@ watch(
   { immediate: true }
 );
 
-onMounted(() => {
+onMounted(async () => {
   window.addEventListener("keydown", handleShortcut);
+  try {
+    const configuracion = await getConfiguracion();
+    empresaNombre.value = configuracion.nombre || empresaNombre.value;
+  } catch {
+    // La navegación sigue disponible aunque la configuración no responda.
+  }
 });
 
 onBeforeUnmount(() => {
@@ -106,11 +141,13 @@ onBeforeUnmount(() => {
       v-model="drawer"
       :permanent="!isMobile"
       :temporary="isMobile"
+      :rail="rail && !isMobile"
       :width="drawerWidth"
+      @click="rail && !isMobile && (rail = false)"
     >
-      <div class="pa-4 pa-lg-5">
+      <div v-if="!rail || isMobile" class="pa-4 pa-lg-5">
         <h2 class="text-subtitle-1 text-lg-h6 font-weight-bold">
-          Queso Los Santos
+          {{ empresaNombre }}
         </h2>
         <p class="text-caption text-medium-emphasis mb-0">
           Sistema financiero-contable
@@ -119,9 +156,43 @@ onBeforeUnmount(() => {
 
       <v-divider />
 
-      <v-list nav density="comfortable">
+      <v-list nav density="comfortable" aria-label="Menú principal">
         <v-list-item
-          v-for="item in menuItems"
+          v-for="item in standaloneItems.slice(0, 1)"
+          :key="item.to"
+          :to="item.to"
+          :prepend-icon="item.icon"
+          :title="item.title"
+          rounded="lg"
+          @click="isMobile && (drawer = false)"
+        />
+
+        <v-list-group
+          v-for="group in menuGroups"
+          :key="group.title"
+          :value="group.title"
+        >
+          <template #activator="{ props }">
+            <v-list-item
+              v-bind="props"
+              :prepend-icon="group.icon"
+              :title="group.title"
+              rounded="lg"
+            />
+          </template>
+          <v-list-item
+            v-for="item in group.items"
+            :key="item.to"
+            :to="item.to"
+            :prepend-icon="item.icon"
+            :title="item.title"
+            rounded="lg"
+            @click="isMobile && (drawer = false)"
+          />
+        </v-list-group>
+
+        <v-list-item
+          v-for="item in standaloneItems.slice(1)"
           :key="item.to"
           :to="item.to"
           :prepend-icon="item.icon"
@@ -133,7 +204,10 @@ onBeforeUnmount(() => {
     </v-navigation-drawer>
 
     <v-app-bar elevation="1">
-      <v-app-bar-nav-icon v-if="isMobile" @click="drawer = !drawer" />
+      <v-app-bar-nav-icon
+        :aria-label="isMobile ? 'Abrir o cerrar menú' : 'Expandir o contraer menú'"
+        @click="toggleMenu"
+      />
 
       <v-app-bar-title class="app-title">
         Sistema Web Financiero-Contable

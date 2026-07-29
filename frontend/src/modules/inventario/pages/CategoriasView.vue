@@ -26,6 +26,7 @@ const snackbarColor = ref("success");
 const form = ref(getEmptyForm());
 
 const headers = [
+  { title: "Código", key: "codigo" },
   { title: "Nombre", key: "nombre" },
   { title: "Descripción", key: "descripcion" },
   { title: "Estado", key: "estado" },
@@ -129,7 +130,7 @@ onMounted(cargarCategorias);
   <section>
     <PageHeader
       title="Categorías"
-      subtitle="Administración de categorías para clasificar productos."
+      subtitle="Cada categoría recibe un código automático para identificar sus productos."
       button-text="Nueva categoría"
       @click="abrirCrear"
     />
@@ -187,6 +188,22 @@ onMounted(cargarCategorias);
 
         <v-card-text>
           <v-row>
+            <v-col cols="12">
+              <v-alert type="info" variant="tonal" density="compact">
+                El código de categoría se genera automáticamente al guardar.
+              </v-alert>
+            </v-col>
+
+            <v-col v-if="editing" cols="12">
+              <v-text-field
+                :model-value="form.codigo"
+                label="Código generado"
+                variant="outlined"
+                density="compact"
+                readonly
+              />
+            </v-col>
+
             <v-col cols="12">
               <v-text-field
                 v-model="form.nombre"

@@ -24,6 +24,21 @@ a {
 
 .v-card {
   border-radius: 8px;
+  min-width: 0;
+}
+
+.v-row > .v-col,
+.v-card-text,
+.v-input,
+.v-field {
+  min-width: 0;
+}
+
+.v-card-title,
+.v-card-subtitle,
+.v-list-item-title,
+.v-list-item-subtitle {
+  overflow-wrap: anywhere;
 }
 
 .v-table__wrapper {
@@ -48,10 +63,32 @@ a {
 
 .v-dialog .v-card {
   max-height: calc(100dvh - 24px);
+  overflow: hidden;
 }
 
 .v-dialog .v-card-text {
   overflow-y: auto;
+}
+
+/* Controles cómodos para pantallas táctiles y formularios de caja. */
+.v-field {
+  min-height: 44px;
+}
+
+.v-btn {
+  min-height: 40px;
+}
+
+@media (min-width: 600px) and (max-width: 1279px) {
+  .v-dialog > .v-overlay__content {
+    max-width: calc(100vw - 32px) !important;
+    width: calc(100vw - 32px);
+  }
+
+  .v-card-text {
+    padding-left: 20px !important;
+    padding-right: 20px !important;
+  }
 }
 
 @media (max-width: 599px) {
@@ -62,5 +99,12 @@ a {
 
   .v-btn {
     min-width: 40px;
+  }
+
+  .v-dialog > .v-overlay__content {
+    margin: 8px;
+    max-height: calc(100dvh - 16px);
+    max-width: calc(100vw - 16px) !important;
+    width: calc(100vw - 16px);
   }
 }

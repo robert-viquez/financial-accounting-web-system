@@ -1,8 +1,10 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils.text import slugify
 
 # Create your models here.
 class CategoriaProducto(models.Model):
+    codigo = models.CharField(max_length=12, unique=True, editable=False)
     nombre = models.CharField(max_length=100, unique=True)
     descripcion = models.TextField(blank=True, null=True)
     estado = models.BooleanField(default=True)
@@ -15,23 +17,36 @@ class CategoriaProducto(models.Model):
     def __str__(self):
         return self.nombre
 
+    def save(self, *args, **kwargs):
+        if not self.codigo:
+            base = "".join(
+                palabra[0] for palabra in slugify(self.nombre).split("-") if palabra
+            ).upper()[:6] or "CAT"
+            codigo = base
+            consecutivo = 2
+            while CategoriaProducto.objects.exclude(pk=self.pk).filter(codigo=codigo).exists():
+                codigo = f"{base[:8]}{consecutivo}"
+                consecutivo += 1
+            self.codigo = codigo
+        super().save(*args, **kwargs)
+
 
 class Producto(models.Model):
-    UNIDAD_MEDIDA = [
-        ("KG", "Kilogramo"),
-        ("UND", "Unidad"),
-        ("PAQ", "Paquete"),
-    ]
-
     categoria = models.ForeignKey(
         CategoriaProducto,
         on_delete=models.PROTECT,
         related_name="productos"
     )
     codigo = models.CharField(max_length=30, unique=True)
+    codigo_barras = models.CharField(max_length=64, unique=True, blank=True, null=True)
     nombre = models.CharField(max_length=150)
     descripcion = models.TextField(blank=True, null=True)
-    unidad_medida = models.CharField(max_length=10, choices=UNIDAD_MEDIDA, default="KG")
+    unidad_medida = models.ForeignKey(
+        "UnidadMedida",
+        on_delete=models.PROTECT,
+        related_name="productos",
+        null=True,
+    )
     precio_venta = models.DecimalField(max_digits=12, decimal_places=2)
     costo_promedio = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     stock_actual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -45,6 +60,22 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
+
+
+class UnidadMedida(models.Model):
+    codigo = models.CharField(max_length=10, unique=True)
+    nombre = models.CharField(max_length=60, unique=True)
+    simbolo = models.CharField(max_length=12)
+    permite_decimales = models.BooleanField(default=True)
+    estado = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ["nombre"]
+        verbose_name = "Unidad de medida"
+        verbose_name_plural = "Unidades de medida"
+
+    def __str__(self):
+        return f"{self.nombre} ({self.simbolo})"
 
 
 class MovimientoInventario(models.Model):

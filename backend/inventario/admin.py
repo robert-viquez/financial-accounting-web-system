@@ -1,10 +1,10 @@
 from django.contrib import admin
-from .models import CategoriaProducto, Producto, MovimientoInventario
+from .models import CategoriaProducto, Producto, MovimientoInventario, UnidadMedida
 # Register your models here.
 
 @admin.register(CategoriaProducto)
 class CategoriaProductoAdmin(admin.ModelAdmin):
-    list_display = ("nombre", "estado")
+    list_display = ("codigo", "nombre", "estado")
     search_fields = ("nombre",)
     list_filter = ("estado",)
 
@@ -37,3 +37,8 @@ class MovimientoInventarioAdmin(admin.ModelAdmin):
     )
     search_fields = ("producto__nombre", "producto__codigo")
     list_filter = ("tipo", "fecha")
+
+
+@admin.register(UnidadMedida)
+class UnidadMedidaAdmin(admin.ModelAdmin):
+    list_display = ("codigo", "nombre", "simbolo", "permite_decimales", "estado")

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
 from .models import Venta, DetalleVenta
+from terceros.models import Cliente
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
     producto_nombre = serializers.CharField(
@@ -73,6 +74,7 @@ class VentaSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = [
             "usuario",
+            "numero_comprobante",
             "fecha",
             "subtotal",
             "impuesto",
@@ -87,8 +89,19 @@ class VentaSerializer(serializers.ModelSerializer):
         detalles_data = validated_data.pop("detalles")
         usuario = self.context["request"].user
         try:
+            from .services import VentaService
+
+            cliente = validated_data.pop("cliente", None)
+            if cliente is None:
+                cliente, _ = Cliente.objects.get_or_create(
+                    nombre="Estimado Cliente",
+                    defaults={"estado": True},
+                )
+
             venta = Venta.objects.create(
                 usuario=usuario,
+                cliente=cliente,
+                numero_comprobante=VentaService.generar_numero_comprobante(),
                 **validated_data
             )
 
