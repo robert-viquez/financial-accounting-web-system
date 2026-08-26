@@ -16,6 +16,7 @@ from contabilidad.models import AsientoContable, DetalleAsiento, PeriodoContable
 from contabilidad.services import ContabilidadService
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar, PagoCliente, PagoProveedor
 from inventario.models import CategoriaProducto, MovimientoInventario, Producto, UnidadMedida
+from inventario.quantities import normalize_quantity
 from terceros.models import Cliente, MedioPago, Proveedor
 from usuarios.models import RegistroAuditoria
 from ventas.models import DetalleVenta, SecuenciaComprobanteVenta, Venta
@@ -274,7 +275,7 @@ class Command(BaseCommand):
                 if product.unidad_medida.codigo == "KG":
                     if rng.random() < .42:
                         target = Decimal(rng.choice(["1000", "1500", "1800", "2000", "2300", "2500", "3000", "3500", "4000", "5000"]))
-                        qty = (target / product.precio_venta).quantize(Decimal("0.001"))
+                        qty = normalize_quantity(target / product.precio_venta)
                         amount_requested.append(f"₡{target}")
                     else:
                         qty = Decimal(rng.choice(["0.225", "0.350", "0.475", "0.650", "0.825", "1.000", "1.250"]))
@@ -326,6 +327,82 @@ class Command(BaseCommand):
             PagoCliente.objects.filter(pk=payment.pk).update(fecha=self._moment(day))
             AsientoContable.objects.filter(origen="COBRO", referencia=str(payment.pk)).update(fecha=day)
 
+    @staticmethod
+    def _movement_effect(move):
+        if move.tipo == "ENTRADA":
+            return move.cantidad
+        if move.tipo == "SALIDA":
+            return -move.cantidad
+        description = move.descripcion or ""
+        if description.startswith("Reversión de venta"):
+            return move.cantidad
+        if description.startswith("Reversión de compra"):
+            return -move.cantidad
+        return move.cantidad
+
+    def _inventory_diagnostics(self):
+        """Validate document quantities and reconstruct stock from movements."""
+        expected_by_document = {}
+        for detail in DetalleCompra.objects.select_related("compra"):
+            key = (f"Entrada por compra {detail.compra.numero_factura}", detail.producto_id)
+            expected_by_document[key] = expected_by_document.get(key, Decimal("0")) + detail.cantidad
+        for detail in DetalleVenta.objects.select_related("venta"):
+            key = (f"Salida por venta {detail.venta.numero_comprobante}", detail.producto_id)
+            expected_by_document[key] = expected_by_document.get(key, Decimal("0")) + detail.cantidad
+
+        inconsistencies = 0
+        products = Producto.objects.select_related("unidad_medida").prefetch_related("movimientos")
+        for product in products:
+            moves = list(product.movimientos.all())
+            for move in moves:
+                key = (move.descripcion or "", product.pk)
+                expected_quantity = expected_by_document.get(key)
+                if expected_quantity is None or move.cantidad == expected_quantity:
+                    continue
+                inconsistencies += 1
+                self.stdout.write(
+                    "\nINCONSISTENCIA DE MOVIMIENTO\n"
+                    f"Producto: {product.codigo} — {product.nombre}\n"
+                    f"Unidad de medida: {product.unidad_medida.codigo} ({product.unidad_medida.simbolo})\n"
+                    f"Movimiento ID: {move.pk}\nTipo: {move.tipo}\n"
+                    f"Documento origen: {move.descripcion}\n"
+                    f"Cantidad almacenada: {move.cantidad}\nCantidad esperada: {expected_quantity}\n"
+                    f"Diferencia: {move.cantidad - expected_quantity}\nFecha: {move.fecha}\n"
+                )
+
+            initial = sum((m.cantidad for m in moves
+                           if m.tipo == "ENTRADA" and m.descripcion == "Inventario inicial de productos terminados"),
+                          Decimal("0"))
+            entries = sum((m.cantidad for m in moves
+                           if m.tipo == "ENTRADA" and m.descripcion != "Inventario inicial de productos terminados"),
+                          Decimal("0"))
+            exits = sum((m.cantidad for m in moves if m.tipo == "SALIDA"), Decimal("0"))
+            adjustments = sum((self._movement_effect(m) for m in moves if m.tipo == "AJUSTE"), Decimal("0"))
+            expected_stock = initial + entries - exits + adjustments
+            if expected_stock == product.stock_actual:
+                continue
+            inconsistencies += 1
+            last_move = max(moves, key=lambda m: (m.fecha, m.pk)) if moves else None
+            previous = expected_stock - self._movement_effect(last_move) if last_move else Decimal("0")
+            self.stdout.write(
+                "\nINCONSISTENCIA DE RECONSTRUCCIÓN DE STOCK\n"
+                f"Producto: {product.codigo} — {product.nombre}\n"
+                f"Unidad de medida: {product.unidad_medida.codigo} ({product.unidad_medida.simbolo})\n"
+                f"Movimiento ID: {last_move.pk if last_move else 'N/A'}\n"
+                f"Tipo: {last_move.tipo if last_move else 'N/A'}\n"
+                f"Documento origen: {last_move.descripcion if last_move else 'N/A'}\n"
+                f"Cantidad almacenada: {last_move.cantidad if last_move else Decimal('0')}\n"
+                f"Cantidad esperada: {last_move.cantidad if last_move else Decimal('0')}\n"
+                f"Stock anterior: {previous}\nStock posterior: {expected_stock}\n"
+                f"Diferencia: {product.stock_actual - expected_stock}\n"
+                f"Fecha: {last_move.fecha if last_move else 'N/A'}\n"
+                f"Stock inicial: {initial}\nTotal entradas: {entries}\nTotal salidas: {exits}\n"
+                f"Ajustes válidos: {adjustments}\nStock esperado: {expected_stock}\n"
+                f"Stock almacenado: {product.stock_actual}\n"
+                f"Diferencia: {product.stock_actual - expected_stock}\n"
+            )
+        return inconsistencies
+
     def _validate(self, seed):
         bad_sales = sum(1 for x in Venta.objects.prefetch_related("detalles")
             if not x.detalles.exists() or x.subtotal != sum((d.subtotal for d in x.detalles.all()), Decimal(0))
@@ -338,12 +415,7 @@ class Command(BaseCommand):
         bad_cxp = sum(1 for x in CuentaPorPagar.objects.prefetch_related("pagos") if x.saldo < 0 or
             x.saldo != x.monto_original - sum((p.monto for p in x.pagos.filter(estado="APLICADO")), Decimal(0)))
         negative = Producto.objects.filter(stock_actual__lt=0).count()
-        inconsistent_moves = 0
-        for product in Producto.objects.prefetch_related("movimientos"):
-            expected = sum((m.cantidad if m.tipo == "ENTRADA" else -m.cantidad
-                            for m in product.movimientos.all()), Decimal("0"))
-            if expected != product.stock_actual:
-                inconsistent_moves += 1
+        inconsistent_moves = self._inventory_diagnostics()
         products_kg = Producto.objects.filter(unidad_medida__codigo="KG").count()
         products_unit = Producto.objects.filter(unidad_medida__codigo="UND").count()
         weight_sales = DetalleVenta.objects.filter(producto__unidad_medida__codigo="KG").count()
@@ -414,7 +486,7 @@ class Command(BaseCommand):
                            ("Ventas por peso", "weight_sales"), ("Ventas simuladas por monto", "amount_sales")]:
             self.stdout.write(f"{label:.<38} {m[key]:>6}")
         self.stdout.write(f"Total ventas{'.' * 25} ₡{m['sales_total']:>12,.2f}\nTotal compras{'.' * 24} ₡{m['purchases_total']:>12,.2f}\n")
-        for label, key in [("Inventario negativo", "negative"), ("Ventas inconsistentes", "bad_sales"),
+        for label, key in [("Stock negativo", "negative"), ("Ventas inconsistentes", "bad_sales"),
             ("Compras inconsistentes", "bad_purchases"), ("CxC inconsistentes", "bad_cxc"),
             ("CxP inconsistentes", "bad_cxp"), ("Prefijos DEMO-", "forbidden_prefixes"),
             ("Movimientos inconsistentes", "inconsistent_moves"),

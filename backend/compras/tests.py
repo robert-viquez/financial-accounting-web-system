@@ -4,9 +4,29 @@ from rest_framework import status
 
 from compras.models import Compra
 from config.test_utils import AccountingAPITestCase
+from inventario.models import MovimientoInventario, UnidadMedida
 
 
 class CompraTests(AccountingAPITestCase):
+    def test_compra_por_peso_usa_18450_en_detalle_movimiento_y_stock(self):
+        kg, _ = UnidadMedida.objects.get_or_create(
+            codigo="KG", defaults={"nombre": "Kilogramo", "simbolo": "kg", "permite_decimales": True}
+        )
+        self.producto.unidad_medida = kg
+        self.producto.save(update_fields=["unidad_medida"])
+        response = self.client.post(
+            "/api/compras/", self.compra_payload(detalles=[{
+                "producto": self.producto.pk, "cantidad": "18.450", "costo_unitario": "5.00",
+            }]), format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        detail = Compra.objects.get().detalles.get()
+        move = MovimientoInventario.objects.get(tipo="ENTRADA")
+        self.producto.refresh_from_db()
+        self.assertEqual(detail.cantidad, Decimal("18.450"))
+        self.assertEqual(move.cantidad, detail.cantidad)
+        self.assertEqual(self.producto.stock_actual, Decimal("38.450"))
+
     def test_compra_con_varias_lineas_calcula_total_y_actualiza_stock(self):
         detalles = [
             {"producto": self.producto.pk, "cantidad": "2.00", "costo_unitario": "5.00"},

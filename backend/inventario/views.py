@@ -10,6 +10,7 @@ from django.utils.dateparse import parse_date
 from datetime import datetime, time, timedelta
 
 from .models import CategoriaProducto, Producto, MovimientoInventario, UnidadMedida
+from .quantities import normalize_quantity
 from .serializers import (
     CategoriaProductoSerializer,
     ProductoSerializer,
@@ -81,7 +82,7 @@ class ProductoViewSet(viewsets.ModelViewSet):
     def registrar_entrada(self, request):
         codigo = str(request.data.get("codigo", "")).strip()
         try:
-            cantidad = Decimal(str(request.data.get("cantidad", "0")))
+            cantidad = normalize_quantity(str(request.data.get("cantidad", "0")))
             costo = Decimal(str(request.data.get("costo_unitario", "0")))
         except Exception:
             return Response(

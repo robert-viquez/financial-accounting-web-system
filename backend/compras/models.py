@@ -60,7 +60,9 @@ class DetalleCompra(models.Model):
 
     def save(self, *args, **kwargs):
         from .services import CompraService
+        from inventario.quantities import normalize_quantity
 
+        self.cantidad = normalize_quantity(self.cantidad)
         self.subtotal = CompraService.calcular_subtotal_detalle(self)
         self.full_clean()
 

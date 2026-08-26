@@ -74,7 +74,12 @@ class DetalleVenta(models.Model):
 
     def save(self, *args, **kwargs):
         from .services import VentaService
+        from inventario.quantities import normalize_quantity
 
+        # Normalize before calculating the subtotal and before the same instance
+        # is passed to inventory. MySQL otherwise persists three decimals while
+        # Python continues carrying the unrounded amount-derived quantity.
+        self.cantidad = normalize_quantity(self.cantidad)
         self.subtotal = VentaService.calcular_subtotal_detalle(self)
         self.full_clean()
 
