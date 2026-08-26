@@ -49,7 +49,7 @@ function formatoFecha(value) {
 
 function formatoNumero(value) {
   return new Intl.NumberFormat("es-CR", {
-    maximumFractionDigits: 2,
+    maximumFractionDigits: 3,
   }).format(Number(value || 0));
 }
 
@@ -183,7 +183,7 @@ onMounted(async () => {
         </template>
 
         <template #item.cantidad="{ item }">
-          {{ formatoNumero(item.cantidad) }}
+          {{ formatoNumero(item.cantidad) }} {{ item.unidad_medida_simbolo }}
         </template>
       </v-data-table>
     </v-card>

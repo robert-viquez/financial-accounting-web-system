@@ -156,6 +156,14 @@ function stockDisponible(productoId) {
   return Number(productoSeleccionado(productoId)?.stock_actual || 0);
 }
 
+function unidadProducto(productoId) {
+  return productoSeleccionado(productoId)?.unidad_medida_simbolo || "";
+}
+
+function permiteDecimales(productoId) {
+  return productoSeleccionado(productoId)?.unidad_medida_nombre !== "Unidad";
+}
+
 function stockSolicitado(productoId) {
   if (!productoId) return 0;
 
@@ -275,7 +283,7 @@ async function guardar() {
     observaciones: form.observaciones,
     detalles: form.detalles.map((detalle) => ({
       producto: detalle.producto,
-      cantidad: Number(detalle.cantidad).toFixed(2),
+      cantidad: Number(detalle.cantidad).toFixed(3),
       precio_unitario: Number(detalle.precio_unitario).toFixed(2),
       descuento: Number(detalle.descuento || 0).toFixed(2),
     })),
@@ -372,7 +380,7 @@ async function guardar() {
         <div>
           <strong>Agregar con lector</strong>
           <p class="text-caption text-medium-emphasis mb-0">
-            Cada lectura agrega una unidad; vuelva a escanear para aumentar la cantidad.
+            Cada lectura agrega una unidad del producto empacado seleccionado.
           </p>
         </div>
         <BarcodeScannerInput
@@ -439,7 +447,7 @@ async function guardar() {
                 variant="tonal"
                 size="small"
               >
-                {{ stockDisponible(detalle.producto) }}
+                {{ stockDisponible(detalle.producto) }} {{ unidadProducto(detalle.producto) }}
               </v-chip>
               <span v-else>-</span>
             </td>
@@ -448,6 +456,8 @@ async function guardar() {
               <v-text-field
                 v-model.number="detalle.cantidad"
                 type="number"
+                :step="permiteDecimales(detalle.producto) ? 0.001 : 1"
+                :min="permiteDecimales(detalle.producto) ? 0.001 : 1"
                 variant="outlined"
                 density="compact"
                 hide-details
