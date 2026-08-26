@@ -74,7 +74,8 @@ class InventarioAPITests(AccountingAPITestCase):
             producto=self.producto_2, tipo="SALIDA", cantidad="1.00",
             descripcion="Salida de prueba",
         )
-        today = timezone.now().date().isoformat()
+        # Los filtros se interpretan en la zona horaria de Costa Rica.
+        today = timezone.localdate().isoformat()
         response = self.client.get(
             f"/api/movimientos-inventario/?producto={self.producto.pk}"
             f"&tipo=ENTRADA&fecha_desde={today}&fecha_hasta={today}"

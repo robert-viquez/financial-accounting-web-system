@@ -49,8 +49,8 @@ class Producto(models.Model):
     )
     precio_venta = models.DecimalField(max_digits=12, decimal_places=2)
     costo_promedio = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    stock_actual = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    stock_minimo = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    stock_actual = models.DecimalField(max_digits=12, decimal_places=3, default=0)
+    stock_minimo = models.DecimalField(max_digits=12, decimal_places=3, default=0)
     estado = models.BooleanField(default=True)
 
     class Meta:
@@ -91,7 +91,7 @@ class MovimientoInventario(models.Model):
         related_name="movimientos"
     )
     tipo = models.CharField(max_length=20, choices=TIPO_MOVIMIENTO)
-    cantidad = models.DecimalField(max_digits=12, decimal_places=2)
+    cantidad = models.DecimalField(max_digits=12, decimal_places=3)
     costo_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     fecha = models.DateTimeField(auto_now_add=True)
     descripcion = models.TextField(blank=True, null=True)

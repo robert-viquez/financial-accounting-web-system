@@ -293,15 +293,6 @@ async function guardar() {
   >
     <v-form ref="formRef">
       <v-alert
-        class="mb-4"
-        type="info"
-        variant="tonal"
-        density="compact"
-        icon="mdi-information-outline"
-      >
-        El comprobante se asignará automáticamente al guardar la venta.
-      </v-alert>
-      <v-alert
         v-if="errorMessage"
         class="mb-4"
         type="error"

@@ -102,6 +102,9 @@ class MovimientoInventarioSerializer(serializers.ModelSerializer):
     )
     compra_relacionada = serializers.SerializerMethodField()
     venta_relacionada = serializers.SerializerMethodField()
+    unidad_medida_simbolo = serializers.CharField(
+        source="producto.unidad_medida.simbolo", read_only=True, default=""
+    )
 
     class Meta:
         model = MovimientoInventario

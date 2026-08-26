@@ -3,7 +3,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from inventario.models import MovimientoInventario
+from inventario.models import MovimientoInventario, Producto
 
 
 class CompraService:
@@ -14,6 +14,10 @@ class CompraService:
 
         if detalle.costo_unitario < 0:
             raise ValidationError("El costo unitario no puede ser negativo.")
+
+        unidad = detalle.producto.unidad_medida
+        if unidad and not unidad.permite_decimales and detalle.cantidad != detalle.cantidad.to_integral_value():
+            raise ValidationError(f"{detalle.producto.nombre} sólo admite cantidades enteras ({unidad.simbolo}).")
 
         subtotal = detalle.cantidad * detalle.costo_unitario
 
@@ -40,7 +44,7 @@ class CompraService:
     @staticmethod
     @transaction.atomic
     def actualizar_inventario_por_compra(detalle):
-        producto = detalle.producto
+        producto = Producto.objects.select_for_update().get(pk=detalle.producto_id)
 
         stock_anterior = producto.stock_actual
         costo_anterior = producto.costo_promedio
@@ -74,7 +78,7 @@ class CompraService:
     @staticmethod
     @transaction.atomic
     def revertir_inventario_por_compra(detalle):
-        producto = detalle.producto
+        producto = Producto.objects.select_for_update().get(pk=detalle.producto_id)
 
         if producto.stock_actual < detalle.cantidad:
             raise ValidationError(

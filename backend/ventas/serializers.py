@@ -8,6 +8,7 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
         source="producto.nombre",
         read_only=True
     )
+    unidad_medida_simbolo = serializers.CharField(source="producto.unidad_medida.simbolo", read_only=True)
 
     class Meta:
         model = DetalleVenta
@@ -15,6 +16,7 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
             "id",
             "producto",
             "producto_nombre",
+            "unidad_medida_simbolo",
             "cantidad",
             "precio_unitario",
             "descuento",
