@@ -5,6 +5,10 @@ export async function getReporteContable(tipo, params = {}) {
   return response.data;
 }
 
+export async function exportarReportes(formato, data) {
+  return api.post(`reportes/exportar/${formato}/`, data, { responseType: "blob", timeout: 60000 });
+}
+
 export async function getCuentasContables(params = {}) {
   const response = await api.get("cuentas-contables/", { params });
   return response.data;
@@ -38,4 +42,16 @@ export async function createPeriodo(data) {
 
 export async function updatePeriodo(id, data) {
   return (await api.patch(`periodos-contables/${id}/`, data)).data;
+}
+
+export async function getResumenContable(params = {}) {
+  return (await api.get("resumen-contable/", { params })).data;
+}
+
+export async function exportarResumenContable(params = {}) {
+  return api.get("resumen-contable/exportar/xlsx/", {
+    params,
+    responseType: "blob",
+    timeout: 60000,
+  });
 }

@@ -10,15 +10,17 @@ import {
 } from "@/modules/finanzas/api/finanzasService";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 import { getVentas } from "@/modules/ventas/api/ventasService";
-import { getReporteContable } from "@/modules/contabilidad/api/contabilidadService";
+import { exportarReportes, getReporteContable } from "@/modules/contabilidad/api/contabilidadService";
 
 const loading = ref(false);
+const exporting = ref("");
 const rows = ref([]);
 const snackbar = ref(false);
 const snackbarText = ref("");
 
 const filters = reactive({
   reporte: "ventas",
+  reportes: ["ventas"],
   desde: "",
   hasta: "",
 });
@@ -86,6 +88,7 @@ function filtrarPorFecha(items, key) {
 }
 
 async function cargarReporte() {
+  if (!validarPeriodo()) return;
   loading.value = true;
 
   try {
@@ -181,8 +184,7 @@ async function cargarReporteContable() {
   }
 }
 
-function descargarArchivo(nombre, contenido, tipo) {
-  const blob = new Blob([contenido], { type: tipo });
+function descargarArchivo(nombre, blob) {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -191,37 +193,46 @@ function descargarArchivo(nombre, contenido, tipo) {
   URL.revokeObjectURL(url);
 }
 
-function exportarExcel() {
-  const table = generarTablaHtml();
-  descargarArchivo(
-    `${filters.reporte}.xls`,
-    table,
-    "application/vnd.ms-excel;charset=utf-8"
-  );
+function validarPeriodo() {
+  if (filters.desde && filters.hasta && filters.desde > filters.hasta) {
+    snackbarText.value = "La fecha inicial no puede ser posterior a la fecha final.";
+    snackbar.value = true;
+    return false;
+  }
+  return true;
 }
 
-function exportarPdf() {
-  window.print();
+function seleccionarTodos() {
+  filters.reportes = filters.reportes.length === reportes.length
+    ? []
+    : reportes.map(({ value }) => value);
 }
 
-function generarTablaHtml() {
-  const head = headers.value.map((header) => `<th>${header}</th>`).join("");
-  const body = rows.value
-    .map((row) => `<tr>${row.map((cell) => `<td>${cell ?? ""}</td>`).join("")}</tr>`)
-    .join("");
-
-  return `
-    <html>
-      <head><meta charset="UTF-8" /></head>
-      <body>
-        <h1>${tituloReporte.value}</h1>
-        <table border="1">
-          <thead><tr>${head}</tr></thead>
-          <tbody>${body}</tbody>
-        </table>
-      </body>
-    </html>
-  `;
+async function exportar(formato) {
+  if (!validarPeriodo()) return;
+  if (!filters.reportes.length) {
+    snackbarText.value = "Seleccione al menos un reporte para exportar.";
+    snackbar.value = true;
+    return;
+  }
+  exporting.value = formato;
+  try {
+    const response = await exportarReportes(formato, {
+      reportes: filters.reportes,
+      desde: filters.desde || null,
+      hasta: filters.hasta || null,
+    });
+    const disposition = response.headers["content-disposition"] || "";
+    const match = disposition.match(/filename="?([^";]+)"?/);
+    const fallback = `QuesoLosSantos_Reportes_${new Date().toISOString().slice(0, 10)}.${formato}`;
+    descargarArchivo(match?.[1] || fallback, response.data);
+  } catch (error) {
+    console.error(error);
+    snackbarText.value = "No se pudo generar el archivo. Revise la selección e inténtelo de nuevo.";
+    snackbar.value = true;
+  } finally {
+    exporting.value = "";
+  }
 }
 
 onMounted(cargarReporte);
@@ -237,17 +248,7 @@ onMounted(cargarReporte);
     <v-card class="mb-4 no-print">
       <v-card-text>
         <v-row>
-          <v-col cols="12" md="4">
-            <v-select
-              v-model="filters.reporte"
-              :items="reportes"
-              label="Reporte"
-              variant="outlined"
-              density="compact"
-              hide-details
-            />
-          </v-col>
-          <v-col cols="12" sm="6" md="2">
+          <v-col cols="12" sm="6" md="3">
             <v-text-field
               v-model="filters.desde"
               label="Desde"
@@ -257,7 +258,7 @@ onMounted(cargarReporte);
               hide-details
             />
           </v-col>
-          <v-col cols="12" sm="6" md="2">
+          <v-col cols="12" sm="6" md="3">
             <v-text-field
               v-model="filters.hasta"
               label="Hasta"
@@ -267,22 +268,32 @@ onMounted(cargarReporte);
               hide-details
             />
           </v-col>
-          <v-col cols="12" sm="4" md="auto">
-            <v-btn block color="primary" variant="tonal" @click="cargarReporte">
-              Generar
-            </v-btn>
-          </v-col>
-          <v-col cols="12" sm="4" md="auto">
-            <v-btn block variant="tonal" prepend-icon="mdi-file-pdf-box" @click="exportarPdf">
-              PDF
-            </v-btn>
-          </v-col>
-          <v-col cols="12" sm="4" md="auto">
-            <v-btn block variant="tonal" prepend-icon="mdi-file-excel" @click="exportarExcel">
-              Excel
+          <v-col cols="12" sm="4" md="auto" class="d-flex align-center">
+            <v-btn block color="primary" variant="tonal" :loading="loading" @click="cargarReporte">
+              Filtrar
             </v-btn>
           </v-col>
         </v-row>
+        <v-divider class="my-4" />
+        <div class="d-flex flex-wrap align-center ga-2 mb-2">
+          <span class="text-subtitle-2">Reportes para exportar</span>
+          <v-btn size="small" variant="text" @click="seleccionarTodos">
+            {{ filters.reportes.length === reportes.length ? "Quitar todos" : "Seleccionar todos" }}
+          </v-btn>
+        </div>
+        <v-chip-group v-model="filters.reportes" column multiple selected-class="text-primary">
+          <v-chip v-for="reporte in reportes" :key="reporte.value" :value="reporte.value" filter variant="outlined">
+            {{ reporte.title }}
+          </v-chip>
+        </v-chip-group>
+        <div class="d-flex flex-wrap ga-2 mt-4">
+          <v-btn color="red-darken-2" variant="tonal" prepend-icon="mdi-file-pdf-box" :loading="exporting === 'pdf'" :disabled="Boolean(exporting)" @click="exportar('pdf')">
+            Descargar PDF
+          </v-btn>
+          <v-btn color="green-darken-2" variant="tonal" prepend-icon="mdi-file-excel" :loading="exporting === 'xlsx'" :disabled="Boolean(exporting)" @click="exportar('xlsx')">
+            Descargar XLSX
+          </v-btn>
+        </div>
       </v-card-text>
     </v-card>
 
@@ -300,6 +311,11 @@ onMounted(cargarReporte);
               {{ cell }}
             </td>
           </tr>
+          <tr v-if="!loading && !rows.length">
+            <td :colspan="headers.length" class="text-center text-medium-emphasis py-8">
+              No hay movimientos para el período seleccionado.
+            </td>
+          </tr>
         </tbody>
       </v-table>
     </v-card>
@@ -311,13 +327,12 @@ onMounted(cargarReporte);
 </template>
 
 <style scoped>
-@media print {
-  .no-print {
-    display: none !important;
-  }
+.report-card :deep(th) {
+  font-weight: 700;
+  white-space: nowrap;
+}
 
-  .report-card {
-    box-shadow: none !important;
-  }
+.report-card :deep(td:nth-last-child(-n + 3)) {
+  font-variant-numeric: tabular-nums;
 }
 </style>
