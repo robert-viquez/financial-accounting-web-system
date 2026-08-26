@@ -130,7 +130,7 @@ async function registrarEntrada(codigo = entrada.value.codigo) {
   try {
     const producto = await registrarEntradaPorCodigo({
       codigo,
-      cantidad: Number(entrada.value.cantidad).toFixed(2),
+      cantidad: Number(entrada.value.cantidad).toFixed(3),
       costo_unitario: Number(entrada.value.costo_unitario || 0).toFixed(2),
     });
     mostrarMensaje(
@@ -240,8 +240,8 @@ onMounted(async () => {
             v-model.number="entrada.cantidad"
             label="Cantidad que ingresa"
             type="number"
-            min="0.01"
-            step="0.01"
+            min="0.001"
+            step="0.001"
             variant="outlined"
             density="comfortable"
             hide-details

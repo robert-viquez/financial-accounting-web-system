@@ -81,6 +81,18 @@ function getSubtotal(detalle) {
   return Number(detalle.cantidad || 0) * Number(detalle.costo_unitario || 0);
 }
 
+function productoSeleccionado(productoId) {
+  return props.productos.find((producto) => producto.id === productoId);
+}
+
+function unidadProducto(productoId) {
+  return productoSeleccionado(productoId)?.unidad_medida_simbolo || "";
+}
+
+function permiteDecimales(productoId) {
+  return productoSeleccionado(productoId)?.unidad_medida_nombre !== "Unidad";
+}
+
 function formatoCRC(valor) {
   return new Intl.NumberFormat("es-CR", {
     style: "currency",
@@ -109,7 +121,7 @@ async function guardar() {
     observaciones: form.observaciones,
     detalles: form.detalles.map((detalle) => ({
       producto: detalle.producto,
-      cantidad: Number(detalle.cantidad).toFixed(2),
+      cantidad: Number(detalle.cantidad).toFixed(3),
       costo_unitario: Number(detalle.costo_unitario).toFixed(2),
     })),
   });
@@ -195,7 +207,7 @@ async function guardar() {
         <thead>
           <tr>
             <th>Producto</th>
-            <th style="width: 140px">Cantidad</th>
+            <th style="width: 160px">Cantidad</th>
             <th style="width: 180px">Costo unitario</th>
             <th style="width: 160px">Subtotal</th>
             <th style="width: 80px">Acción</th>
@@ -222,6 +234,9 @@ async function guardar() {
               <v-text-field
                 v-model.number="detalle.cantidad"
                 type="number"
+                :step="permiteDecimales(detalle.producto) ? 0.001 : 1"
+                :min="permiteDecimales(detalle.producto) ? 0.001 : 1"
+                :suffix="unidadProducto(detalle.producto)"
                 variant="outlined"
                 density="compact"
                 hide-details
