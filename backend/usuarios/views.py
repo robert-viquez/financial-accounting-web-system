@@ -8,6 +8,7 @@ from .models import ConfiguracionEmpresa, RegistroAuditoria
 from .serializers import (
     CambiarPasswordSerializer,
     ConfiguracionEmpresaSerializer,
+    IdentidadEmpresaSerializer,
     UsuarioSerializer,
     RegistroAuditoriaSerializer,
     RolSerializer,
@@ -69,6 +70,16 @@ class ConfiguracionEmpresaView(generics.RetrieveUpdateAPIView):
                 message="Solo un administrador puede modificar la configuración.",
             )
         serializer.save()
+
+
+class IdentidadEmpresaView(generics.RetrieveAPIView):
+    serializer_class = IdentidadEmpresaSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_object(self):
+        configuracion, _ = ConfiguracionEmpresa.objects.get_or_create(pk=1)
+        return configuracion
+
 
 
 class AuditoriaView(generics.ListAPIView):

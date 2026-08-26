@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import {
@@ -18,11 +18,15 @@ import {
   getUnidadesMedida,
   updateUnidadMedida,
 } from "@/modules/inventario/api/ProductosServices";
+import defaultLogo from "@/assets/queso-los-santos-logo.png";
 
 const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 const saving = ref(false);
+const logoFile = ref(null);
+const logoPreview = ref(defaultLogo);
+let objectUrl = null;
 
 const empresa = reactive({
   nombre: "",
@@ -52,7 +56,15 @@ const nuevaUnidad = reactive({
 const perfil = reactive({
   nombre: "",
   correo: "",
+  is_staff: false,
 });
+
+const isAdministrator = computed(() => perfil.is_staff);
+const apiUrl = new URL(
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api/",
+  window.location.origin
+);
+const adminUrl = new URL("/admin/", apiUrl.origin).toString();
 
 const password = reactive({
   actual: "",
@@ -70,6 +82,17 @@ function mensaje(texto, color = "success") {
   snackbar.value = true;
 }
 
+function mensajeError(error, fallback) {
+  const data = error.response?.data;
+  if (typeof data?.detail === "string") return data.detail;
+  if (data && typeof data === "object") {
+    const [campo, errores] = Object.entries(data)[0] || [];
+    const detalle = Array.isArray(errores) ? errores[0] : errores;
+    if (campo && detalle) return `${campo}: ${detalle}`;
+  }
+  return fallback;
+}
+
 async function cargarConfiguracion() {
   try {
     const [config, currentProfile, roleData, unitData] = await Promise.all([
@@ -78,13 +101,19 @@ async function cargarConfiguracion() {
       getRoles(),
       getUnidadesMedida({ ordering: "nombre" }),
     ]);
-    Object.assign(empresa, config);
+    empresa.nombre = config.nombre || "";
+    empresa.identificacion = config.identificacion || "";
+    empresa.telefono = config.telefono || "";
+    empresa.correo = config.correo || "";
+    empresa.direccion = config.direccion || "";
     impuestos.iva = Number(config.iva);
     impuestos.moneda = config.moneda;
     inventario.lector_codigo_barras = config.lector_codigo_barras;
     inventario.prefijo_productos = config.prefijo_productos;
+    logoPreview.value = config.logo || defaultLogo;
     perfil.nombre = currentProfile.nombre;
     perfil.correo = currentProfile.correo;
+    perfil.is_staff = currentProfile.is_staff;
     roles.value = roleData;
     unidades.value = unitData.results ?? unitData;
     try {
@@ -103,16 +132,42 @@ async function cargarConfiguracion() {
 async function guardarConfiguracion() {
   saving.value = true;
   try {
-    await Promise.all([
-      updateConfiguracion({ ...empresa, ...impuestos, ...inventario }),
-      updatePerfil({ first_name: perfil.nombre, correo: perfil.correo }),
-    ]);
+    const updates = [updatePerfil({ first_name: perfil.nombre, correo: perfil.correo || "" })];
+    if (isAdministrator.value) {
+      const formData = new FormData();
+      Object.entries({ ...empresa, ...impuestos, ...inventario }).forEach(([key, value]) => {
+        formData.append(key, value);
+      });
+      if (logoFile.value) formData.append("logo", logoFile.value);
+      updates.push(updateConfiguracion(formData));
+    }
+    const results = await Promise.all(updates);
+    const savedConfig = results[1];
+    if (savedConfig?.logo) logoPreview.value = savedConfig.logo;
+    logoFile.value = null;
     mensaje("Configuración guardada correctamente.");
   } catch (error) {
-    mensaje(error.response?.data?.detail || "No se pudo guardar la configuración.", "error");
+    mensaje(mensajeError(error, "No se pudo guardar la configuración."), "error");
   } finally {
     saving.value = false;
   }
+}
+
+function seleccionarLogo(files) {
+  const file = Array.isArray(files) ? files[0] : files;
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    mensaje("Seleccione un archivo de imagen válido.", "error");
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    mensaje("El logo no puede superar 5 MB.", "error");
+    return;
+  }
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+  logoFile.value = file;
+  objectUrl = URL.createObjectURL(file);
+  logoPreview.value = objectUrl;
 }
 
 async function agregarUnidad() {
@@ -184,6 +239,9 @@ async function cambiarPassword() {
 }
 
 onMounted(cargarConfiguracion);
+onBeforeUnmount(() => {
+  if (objectUrl) URL.revokeObjectURL(objectUrl);
+});
 </script>
 
 <template>
@@ -194,6 +252,54 @@ onMounted(cargarConfiguracion);
     />
 
     <v-row>
+      <v-col v-if="isAdministrator" cols="12" lg="6">
+        <v-card class="admin-card" color="primary" variant="tonal">
+          <v-card-item prepend-icon="mdi-shield-crown-outline">
+            <v-card-title>Panel de administración</v-card-title>
+            <v-card-subtitle>
+              Administración avanzada de usuarios y datos del sistema.
+            </v-card-subtitle>
+            <template #append>
+              <v-btn
+                :href="adminUrl"
+                color="primary"
+                append-icon="mdi-open-in-new"
+                size="small"
+              >
+                Ingresar al panel
+              </v-btn>
+            </template>
+          </v-card-item>
+        </v-card>
+      </v-col>
+
+      <v-col v-if="isAdministrator" cols="12">
+        <v-card class="config-card">
+          <v-card-title>Identidad visual</v-card-title>
+          <v-card-subtitle>
+            Logo mostrado en el inicio de sesión y en el menú principal.
+          </v-card-subtitle>
+          <v-card-text>
+            <div class="logo-settings">
+              <div class="logo-preview">
+                <img :src="logoPreview" :alt="`Vista previa del logo de ${empresa.nombre || 'la empresa'}`" />
+              </div>
+              <v-file-input
+                :model-value="logoFile"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                label="Cambiar logo"
+                hint="PNG, JPG, WebP o GIF; máximo 5 MB. Se aplicará al guardar."
+                persistent-hint
+                prepend-icon="mdi-image-outline"
+                variant="outlined"
+                density="compact"
+                @update:model-value="seleccionarLogo"
+              />
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
       <v-col cols="12" lg="6">
         <v-card class="config-card">
           <v-card-title>Datos de la empresa</v-card-title>
@@ -418,6 +524,35 @@ onMounted(cargarConfiguracion);
   overflow: hidden;
 }
 
+.admin-card {
+  height: 100%;
+}
+
+.logo-settings {
+  align-items: center;
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(220px, 360px) minmax(260px, 1fr);
+}
+
+.logo-preview {
+  align-items: center;
+  background: #fff;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 12px;
+  display: flex;
+  justify-content: center;
+  min-height: 150px;
+  overflow: hidden;
+  padding: 10px;
+}
+
+.logo-preview img {
+  height: 150px;
+  object-fit: contain;
+  width: 100%;
+}
+
 .units-list {
   display: grid;
   gap: 12px;
@@ -456,6 +591,10 @@ onMounted(cargarConfiguracion);
 }
 
 @media (max-width: 599px) {
+  .logo-settings {
+    grid-template-columns: 1fr;
+  }
+
   .unit-row {
     grid-template-columns: 1fr;
   }

@@ -15,6 +15,7 @@ class ConfiguracionEmpresa(models.Model):
     )
     lector_codigo_barras = models.BooleanField(default=True)
     prefijo_productos = models.CharField(max_length=8, blank=True, default="")
+    logo = models.ImageField(upload_to="empresa/logos/", blank=True, null=True)
     actualizado_en = models.DateTimeField(auto_now=True)
 
     class Meta:

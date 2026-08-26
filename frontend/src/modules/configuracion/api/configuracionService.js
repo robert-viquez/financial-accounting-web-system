@@ -4,8 +4,15 @@ export async function getConfiguracion() {
   return (await api.get("configuracion-empresa/")).data;
 }
 
+export async function getIdentidadEmpresa() {
+  return (await api.get("identidad-empresa/")).data;
+}
+
 export async function updateConfiguracion(data) {
-  return (await api.patch("configuracion-empresa/", data)).data;
+  const options = data instanceof FormData
+    ? { headers: { "Content-Type": undefined } }
+    : undefined;
+  return (await api.patch("configuracion-empresa/", data, options)).data;
 }
 
 export async function getPerfil() {

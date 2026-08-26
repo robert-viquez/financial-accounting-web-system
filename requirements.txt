@@ -5,5 +5,6 @@ drf-spectacular
 django-cors-headers
 mysqlclient
 python-dotenv
+Pillow>=10.0
 djangorestframework-simplejwt
 gunicorn

@@ -11,10 +11,21 @@ class ConfiguracionEmpresaSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["actualizado_en"]
 
+    def validate_logo(self, value):
+        if value and value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("El logo no puede superar 5 MB.")
+        return value
+
+
+class IdentidadEmpresaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ConfiguracionEmpresa
+        fields = ["nombre", "logo"]
+
 
 class UsuarioSerializer(serializers.ModelSerializer):
     nombre = serializers.SerializerMethodField()
-    correo = serializers.EmailField(source="email", required=False)
+    correo = serializers.EmailField(source="email", required=False, allow_blank=True)
     roles = serializers.SlugRelatedField(
         source="groups",
         many=True,

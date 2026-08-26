@@ -6,6 +6,7 @@ import { storeToRefs } from "pinia";
 import { logout } from "@/modules/auth/authService";
 import { useUiStore } from "@/stores/ui";
 import { getConfiguracion } from "@/modules/configuracion/api/configuracionService";
+import defaultLogo from "@/assets/queso-los-santos-logo.png";
 
 const router = useRouter();
 const route = useRoute();
@@ -16,6 +17,7 @@ const { isDark } = storeToRefs(uiStore);
 const drawer = ref(true);
 const rail = ref(false);
 const empresaNombre = ref("Sistema financiero-contable");
+const logoUrl = ref(defaultLogo);
 
 const isMobile = computed(() => display.smAndDown.value);
 const isDesktop = computed(() => display.mdAndUp.value);
@@ -125,6 +127,7 @@ onMounted(async () => {
   try {
     const configuracion = await getConfiguracion();
     empresaNombre.value = configuracion.nombre || empresaNombre.value;
+    logoUrl.value = configuracion.logo || defaultLogo;
   } catch {
     // La navegación sigue disponible aunque la configuración no responda.
   }
@@ -145,13 +148,21 @@ onBeforeUnmount(() => {
       :width="drawerWidth"
       @click="rail && !isMobile && (rail = false)"
     >
-      <div v-if="!rail || isMobile" class="pa-4 pa-lg-5">
-        <h2 class="text-subtitle-1 text-lg-h6 font-weight-bold">
-          {{ empresaNombre }}
-        </h2>
-        <p class="text-caption text-medium-emphasis mb-0">
-          Sistema financiero-contable
-        </p>
+      <div
+        class="brand"
+        :class="{ 'brand--rail': rail && !isMobile }"
+        :style="{ backgroundImage: `url(${logoUrl})` }"
+        role="img"
+        :aria-label="`Logo de ${empresaNombre}`"
+      >
+        <div v-if="!rail || isMobile" class="brand-copy">
+          <h2 class="text-subtitle-1 text-lg-h6 font-weight-bold">
+            {{ empresaNombre }}
+          </h2>
+          <p class="text-caption mb-0">
+            Sistema financiero-contable
+          </p>
+        </div>
       </div>
 
       <v-divider />
@@ -261,6 +272,39 @@ onBeforeUnmount(() => {
 .app-title {
   font-size: 0.98rem;
   min-width: 0;
+}
+
+.brand {
+  align-items: center;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  min-height: 118px;
+  overflow: hidden;
+  padding: 16px;
+  position: relative;
+}
+
+.brand::before {
+  background: linear-gradient(90deg, rgba(17, 24, 39, 0.86), rgba(17, 24, 39, 0.34));
+  content: "";
+  inset: 0;
+  position: absolute;
+}
+
+.brand--rail {
+  background-size: auto 100%;
+  min-height: 88px;
+  padding: 0;
+}
+
+.brand-copy {
+  color: #fff;
+  min-width: 0;
+  position: relative;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.72);
+  z-index: 1;
 }
 
 @media (min-width: 600px) {
