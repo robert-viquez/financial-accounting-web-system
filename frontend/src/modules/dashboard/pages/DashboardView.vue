@@ -21,6 +21,29 @@ const clientes = ref([]);
 const proveedores = ref([]);
 const cuentasPorCobrar = ref([]);
 const cuentasPorPagar = ref([]);
+const customizeDialog = ref(false);
+const DASHBOARD_KEY = "queso-los-santos:dashboard-preferences";
+const defaultPreferences = {
+  kpis: ["ventas_dia", "ventas_mes", "compras_mes", "productos", "stock_bajo", "clientes", "proveedores"],
+  sections: ["graficos", "productos", "ultimos", "cuentas"],
+};
+const savedPreferences = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(DASHBOARD_KEY)) || defaultPreferences;
+  } catch {
+    return defaultPreferences;
+  }
+})();
+const preferences = ref({
+  kpis: [...(savedPreferences.kpis || defaultPreferences.kpis)],
+  sections: [...(savedPreferences.sections || defaultPreferences.sections)],
+});
+const sectionOptions = [
+  { value: "graficos", title: "Gráficos de ventas y compras" },
+  { value: "productos", title: "Indicadores de productos" },
+  { value: "ultimos", title: "Últimas ventas y compras" },
+  { value: "cuentas", title: "Cuentas pendientes" },
+];
 
 const hoy = new Date();
 const mesActual = hoy.getMonth();
@@ -28,48 +51,68 @@ const anioActual = hoy.getFullYear();
 
 const kpis = computed(() => [
   {
+    id: "ventas_dia",
     title: "Ventas del día",
     value: formatoCRC(totalVentasDia.value),
     icon: "mdi-cash-register",
     color: "green",
   },
   {
+    id: "ventas_mes",
     title: "Ventas del mes",
     value: formatoCRC(totalVentasMes.value),
     icon: "mdi-trending-up",
     color: "blue",
   },
   {
+    id: "compras_mes",
     title: "Compras del mes",
     value: formatoCRC(totalComprasMes.value),
     icon: "mdi-cart-arrow-down",
     color: "deep-orange",
   },
   {
+    id: "productos",
     title: "Productos registrados",
     value: productos.value.length,
     icon: "mdi-package-variant-closed",
     color: "indigo",
   },
   {
+    id: "stock_bajo",
     title: "Stock bajo",
     value: productosStockBajo.value.length,
     icon: "mdi-alert-circle-outline",
     color: "red",
   },
   {
+    id: "clientes",
     title: "Clientes",
     value: clientes.value.length,
     icon: "mdi-account-group",
     color: "teal",
   },
   {
+    id: "proveedores",
     title: "Proveedores",
     value: proveedores.value.length,
     icon: "mdi-truck-delivery",
     color: "purple",
   },
 ]);
+const visibleKpis = computed(() => kpis.value.filter((kpi) => preferences.value.kpis.includes(kpi.id)));
+const kpiOptions = computed(() => kpis.value.map(({ id, title }) => ({ value: id, title })));
+const sectionVisible = (id) => preferences.value.sections.includes(id);
+
+function savePreferences() {
+  localStorage.setItem(DASHBOARD_KEY, JSON.stringify(preferences.value));
+  customizeDialog.value = false;
+}
+
+function restorePreferences() {
+  preferences.value = { kpis: [...defaultPreferences.kpis], sections: [...defaultPreferences.sections] };
+  localStorage.removeItem(DASHBOARD_KEY);
+}
 
 const totalVentasDia = computed(() =>
   ventas.value
@@ -303,6 +346,15 @@ onMounted(cargarDashboard);
       <v-spacer />
 
       <v-btn
+        class="mr-2"
+        variant="text"
+        prepend-icon="mdi-view-dashboard-edit-outline"
+        @click="customizeDialog = true"
+      >
+        Personalizar dashboard
+      </v-btn>
+
+      <v-btn
         color="primary"
         variant="tonal"
         prepend-icon="mdi-refresh"
@@ -313,9 +365,9 @@ onMounted(cargarDashboard);
       </v-btn>
     </div>
 
-    <v-row>
+    <v-row class="dashboard-row mb-0">
       <v-col
-        v-for="kpi in kpis"
+        v-for="kpi in visibleKpis"
         :key="kpi.title"
         cols="12"
         sm="6"
@@ -337,8 +389,8 @@ onMounted(cargarDashboard);
       </v-col>
     </v-row>
 
-    <v-row class="mt-1">
-      <v-col cols="12" lg="6">
+    <v-row v-if="sectionVisible('graficos') || sectionVisible('productos')" class="dashboard-row mb-0">
+      <v-col v-if="sectionVisible('graficos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Ventas por mes</v-card-title>
           <v-card-text>
@@ -358,7 +410,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('graficos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Compras por mes</v-card-title>
           <v-card-text>
@@ -378,7 +430,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('productos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Productos más vendidos</v-card-title>
           <v-card-text>
@@ -409,7 +461,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('productos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Productos con menor stock</v-card-title>
           <v-card-text>
@@ -435,8 +487,8 @@ onMounted(cargarDashboard);
       </v-col>
     </v-row>
 
-    <v-row class="mt-1">
-      <v-col cols="12" lg="6">
+    <v-row v-if="sectionVisible('ultimos') || sectionVisible('cuentas')" class="dashboard-row">
+      <v-col v-if="sectionVisible('ultimos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Últimas ventas</v-card-title>
           <v-table density="compact">
@@ -460,7 +512,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('ultimos')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">Últimas compras</v-card-title>
           <v-table density="compact">
@@ -484,7 +536,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('cuentas')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">
             Cuentas por cobrar pendientes
@@ -510,7 +562,7 @@ onMounted(cargarDashboard);
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-if="sectionVisible('cuentas')" cols="12" lg="6">
         <v-card class="dashboard-card" :loading="loading">
           <v-card-title class="text-subtitle-1">
             Cuentas por pagar pendientes
@@ -537,6 +589,26 @@ onMounted(cargarDashboard);
       </v-col>
     </v-row>
 
+    <v-dialog v-model="customizeDialog" max-width="620" scrollable>
+      <v-card>
+        <v-card-title>Personalizar dashboard</v-card-title>
+        <v-card-text>
+          <p class="text-body-2 text-medium-emphasis mb-3">Seleccione la información que desea ver. Esta preferencia se conserva en este navegador.</p>
+          <div class="text-subtitle-2 mb-1">Indicadores</div>
+          <v-checkbox v-for="option in kpiOptions" :key="option.value" v-model="preferences.kpis" :label="option.title" :value="option.value" density="compact" hide-details />
+          <v-divider class="my-3" />
+          <div class="text-subtitle-2 mb-1">Secciones</div>
+          <v-checkbox v-for="option in sectionOptions" :key="option.value" v-model="preferences.sections" :label="option.title" :value="option.value" density="compact" hide-details />
+        </v-card-text>
+        <v-card-actions>
+          <v-btn variant="text" @click="restorePreferences">Restaurar predeterminados</v-btn>
+          <v-spacer />
+          <v-btn variant="text" @click="customizeDialog = false">Cancelar</v-btn>
+          <v-btn color="primary" @click="savePreferences">Guardar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-snackbar v-model="snackbar" color="error" timeout="3000">
       {{ snackbarText }}
     </v-snackbar>
@@ -546,11 +618,24 @@ onMounted(cargarDashboard);
 <style scoped>
 .dashboard-view {
   min-width: 0;
+  overflow-x: hidden;
 }
 
 .dashboard-card {
   border-radius: 8px;
   height: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dashboard-row {
+  margin-bottom: 0;
+  margin-top: 0;
+  row-gap: 0;
+}
+
+.dashboard-row + .dashboard-row {
+  margin-top: 12px;
 }
 
 .kpi-card :deep(.v-card-text) {
@@ -576,10 +661,17 @@ onMounted(cargarDashboard);
 }
 
 .product-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  line-height: 1.25;
   text-transform: none;
-  white-space: nowrap;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.bar-row:has(.product-label) {
+  grid-template-columns: minmax(150px, 1.2fr) minmax(80px, 1fr) 72px;
+  min-height: 40px;
 }
 
 .bar-track {
@@ -619,6 +711,10 @@ onMounted(cargarDashboard);
 
   .bar-value {
     font-size: 0.72rem;
+  }
+
+  .bar-row:has(.product-label) {
+    grid-template-columns: minmax(120px, 1.2fr) minmax(60px, 1fr) 58px;
   }
 }
 </style>
