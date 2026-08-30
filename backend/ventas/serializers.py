@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Venta, DetalleVenta
+from .models import ComprobanteElectronico, Venta, DetalleVenta
 from terceros.models import Cliente
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
@@ -117,3 +117,27 @@ class VentaSerializer(serializers.ModelSerializer):
             return venta
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
+
+
+class ComprobanteElectronicoSerializer(serializers.ModelSerializer):
+    numero_comprobante_venta = serializers.CharField(
+        source="venta.numero_comprobante", read_only=True
+    )
+
+    class Meta:
+        model = ComprobanteElectronico
+        fields = [
+            "id", "venta", "numero_comprobante_venta", "clave_numerica",
+            "consecutivo", "tipo_comprobante", "xml_generado",
+            "estado_hacienda", "mensaje_hacienda", "fecha_envio",
+            "fecha_respuesta", "fecha_creado", "fecha_actualizado",
+        ]
+        # Los datos de Hacienda sólo podrán cambiar mediante una futura capa de
+        # integración, no desde esta API preparatoria.
+        read_only_fields = fields
+
+
+class PrepararComprobanteElectronicoSerializer(serializers.Serializer):
+    tipo_comprobante = serializers.ChoiceField(
+        choices=ComprobanteElectronico.TipoComprobante.choices
+    )

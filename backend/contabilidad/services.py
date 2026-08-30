@@ -68,6 +68,7 @@ class ContabilidadService:
         origen="MANUAL",
         referencia="",
         contabilizar=True,
+        monto_transaccion=None,
     ):
         ContabilidadService.validar_periodo_abierto(fecha)
         for linea in lineas:
@@ -77,6 +78,14 @@ class ContabilidadService:
         total_haber = sum((linea["haber"] for linea in lineas), Decimal("0"))
         if not lineas or total_debe <= 0 or total_debe != total_haber:
             raise ValidationError("El asiento debe estar balanceado y ser mayor a cero.")
+        movimientos = {}
+        for linea in lineas:
+            tipo = linea.get("tipo_movimiento", "GENERAL")
+            subtotal = movimientos.setdefault(tipo, {"debe": Decimal("0"), "haber": Decimal("0")})
+            subtotal["debe"] += linea["debe"]
+            subtotal["haber"] += linea["haber"]
+        if any(valores["debe"] <= 0 or valores["debe"] != valores["haber"] for valores in movimientos.values()):
+            raise ValidationError("Cada movimiento contable debe estar balanceado y ser mayor a cero.")
 
         asiento = None
         if referencia:
@@ -91,6 +100,7 @@ class ContabilidadService:
             asiento.fecha = fecha
             asiento.descripcion = descripcion
             asiento.usuario = usuario
+            asiento.monto_transaccion = monto_transaccion
         else:
             asiento = AsientoContable(
                 numero=ContabilidadService.siguiente_numero(),
@@ -99,6 +109,7 @@ class ContabilidadService:
                 usuario=usuario,
                 origen=origen,
                 referencia=referencia,
+                monto_transaccion=monto_transaccion,
             )
 
         asiento.estado = "CONTABILIZADO" if contabilizar else "BORRADOR"
@@ -109,6 +120,7 @@ class ContabilidadService:
                 asiento=asiento,
                 cuenta=linea["cuenta"],
                 descripcion=linea.get("descripcion", ""),
+                tipo_movimiento=linea.get("tipo_movimiento", "GENERAL"),
                 debe=Decimal(str(linea.get("debe", 0))),
                 haber=Decimal(str(linea.get("haber", 0))),
             )
@@ -141,13 +153,13 @@ class ContabilidadService:
             Decimal("0.00"),
         )
         lineas = [
-            {"cuenta": contrapartida, "debe": venta.total, "haber": 0},
-            {"cuenta": cuentas["4101"], "debe": 0, "haber": venta.total},
+            {"cuenta": contrapartida, "debe": venta.total, "haber": 0, "tipo_movimiento": "VENTA"},
+            {"cuenta": cuentas["4101"], "debe": 0, "haber": venta.total, "tipo_movimiento": "VENTA"},
         ]
         if costo > 0:
             lineas.extend([
-                {"cuenta": cuentas["5101"], "debe": costo, "haber": 0},
-                {"cuenta": cuentas["1201"], "debe": 0, "haber": costo},
+                {"cuenta": cuentas["5101"], "debe": costo, "haber": 0, "tipo_movimiento": "COSTO_VENTA"},
+                {"cuenta": cuentas["1201"], "debe": 0, "haber": costo, "tipo_movimiento": "COSTO_VENTA"},
             ])
         return ContabilidadService.guardar_asiento(
             fecha=timezone.localtime(venta.fecha).date(),
@@ -156,6 +168,7 @@ class ContabilidadService:
             lineas=lineas,
             origen="VENTA",
             referencia=str(venta.pk),
+            monto_transaccion=venta.total,
         )
 
     @staticmethod
@@ -167,11 +180,12 @@ class ContabilidadService:
             descripcion=f"Compra {compra.numero_factura}",
             usuario=compra.usuario,
             lineas=[
-                {"cuenta": cuentas["1201"], "debe": compra.total, "haber": 0},
-                {"cuenta": contrapartida, "debe": 0, "haber": compra.total},
+                {"cuenta": cuentas["1201"], "debe": compra.total, "haber": 0, "tipo_movimiento": "COMPRA"},
+                {"cuenta": contrapartida, "debe": 0, "haber": compra.total, "tipo_movimiento": "COMPRA"},
             ],
             origen="COMPRA",
             referencia=str(compra.pk),
+            monto_transaccion=compra.total,
         )
 
     @staticmethod
@@ -182,11 +196,12 @@ class ContabilidadService:
             descripcion=f"Cobro de {pago.cuenta_por_cobrar.cliente.nombre}",
             usuario=pago.usuario or pago.cuenta_por_cobrar.venta.usuario,
             lineas=[
-                {"cuenta": cuentas["1101"], "debe": pago.monto, "haber": 0},
-                {"cuenta": cuentas["1102"], "debe": 0, "haber": pago.monto},
+                {"cuenta": cuentas["1101"], "debe": pago.monto, "haber": 0, "tipo_movimiento": "COBRO"},
+                {"cuenta": cuentas["1102"], "debe": 0, "haber": pago.monto, "tipo_movimiento": "COBRO"},
             ],
             origen="COBRO",
             referencia=str(pago.pk),
+            monto_transaccion=pago.monto,
         )
 
     @staticmethod
@@ -197,11 +212,12 @@ class ContabilidadService:
             descripcion=f"Pago a {pago.cuenta_por_pagar.proveedor.nombre}",
             usuario=pago.usuario or pago.cuenta_por_pagar.compra.usuario,
             lineas=[
-                {"cuenta": cuentas["2101"], "debe": pago.monto, "haber": 0},
-                {"cuenta": cuentas["1101"], "debe": 0, "haber": pago.monto},
+                {"cuenta": cuentas["2101"], "debe": pago.monto, "haber": 0, "tipo_movimiento": "PAGO"},
+                {"cuenta": cuentas["1101"], "debe": 0, "haber": pago.monto, "tipo_movimiento": "PAGO"},
             ],
             origen="PAGO",
             referencia=str(pago.pk),
+            monto_transaccion=pago.monto,
         )
 
     @staticmethod

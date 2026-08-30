@@ -1,10 +1,12 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.utils import timezone
+
 from inventario.models import MovimientoInventario, Producto
-from decimal import Decimal, ROUND_HALF_UP
-from .models import SecuenciaComprobanteVenta
+
+from .models import ComprobanteElectronico, SecuenciaComprobanteVenta
 
 class VentaService:
     @staticmethod
@@ -110,3 +112,47 @@ class VentaService:
             descripcion=f"Reversión de venta {detalle.venta.numero_comprobante}",
             usuario=detalle.venta.usuario,
         )
+
+
+class FacturacionElectronicaService:
+    """Operaciones internas preparatorias, sin comunicación con Hacienda."""
+
+    @staticmethod
+    def validar_datos_preparacion(venta):
+        """Informa faltantes fiscales sin impedir el registro normal de ventas."""
+        faltantes = []
+        if not venta.cliente_id:
+            faltantes.append("cliente")
+        else:
+            if not venta.cliente.nombre:
+                faltantes.append("nombre_cliente")
+            if not venta.cliente.identificacion:
+                faltantes.append("identificacion_cliente")
+        if not venta.medio_pago_id:
+            faltantes.append("medio_pago")
+        detalles = venta.detalles.select_related("producto").all()
+        if not detalles.exists():
+            faltantes.append("detalles_venta")
+        else:
+            for detalle in detalles:
+                if not detalle.producto.codigo:
+                    faltantes.append("codigo_producto")
+                    break
+        return {"preparado": not faltantes, "faltantes": faltantes}
+
+    @staticmethod
+    @transaction.atomic
+    def preparar_comprobante(venta, tipo_comprobante):
+        """Crea solamente un borrador; no genera datos fiscales ni efectos de venta."""
+        comprobante = ComprobanteElectronico(
+            venta=venta,
+            tipo_comprobante=tipo_comprobante,
+            estado_hacienda=ComprobanteElectronico.EstadoHacienda.BORRADOR,
+        )
+        comprobante.full_clean()
+        comprobante.save()
+        return comprobante
+
+    @staticmethod
+    def obtener_comprobantes(venta):
+        return venta.comprobantes_electronicos.all()

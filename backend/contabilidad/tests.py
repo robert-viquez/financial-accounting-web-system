@@ -4,6 +4,7 @@ from django.test import TestCase
 
 from contabilidad.models import CuentaContable
 from contabilidad.models import AsientoContable, PeriodoContable
+from contabilidad.services import ContabilidadService
 from config.test_utils import AccountingAPITestCase
 from django.contrib.auth.models import Group
 from django.utils import timezone
@@ -56,6 +57,65 @@ class FlujoContableTests(AccountingAPITestCase):
         self.assertTrue(balance.data)
         self.assertEqual(resultados.status_code, status.HTTP_200_OK)
         self.assertEqual(len(resultados.data), 3)
+
+    def test_venta_contado_expone_monto_comercial_y_movimientos_balanceados(self):
+        self.producto.precio_venta = Decimal("22050.00")
+        self.producto.costo_promedio = Decimal("16367.58")
+        self.producto.save(update_fields=["precio_venta", "costo_promedio"])
+        response = self.client.post(
+            "/api/ventas/",
+            self.venta_payload(detalles=[{
+                "producto": self.producto.pk,
+                "cantidad": "1.00",
+                "precio_unitario": "22050.00",
+                "descuento": "0.00",
+            }]),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        asiento = AsientoContable.objects.get(origen="VENTA")
+        self.assertEqual(AsientoContable.objects.filter(origen="VENTA").count(), 1)
+        self.assertEqual(asiento.monto_transaccion, Decimal("22050.00"))
+        self.assertEqual(asiento.total_debe, Decimal("38417.58"))
+        self.assertEqual(asiento.total_haber, Decimal("38417.58"))
+
+        diario = self.client.get("/api/reportes-contables/libro-diario/")
+        data = diario.data[0]
+        self.assertEqual(Decimal(data["monto_transaccion"]), Decimal("22050.00"))
+        movimientos = {item["tipo"]: item for item in data["movimientos"]}
+        self.assertEqual(set(movimientos), {"VENTA", "COSTO_VENTA"})
+        self.assertEqual(movimientos["VENTA"]["nombre"], "Reconocimiento de la venta")
+        self.assertEqual(Decimal(movimientos["VENTA"]["total_debe"]), Decimal("22050.00"))
+        self.assertEqual(Decimal(movimientos["VENTA"]["total_haber"]), Decimal("22050.00"))
+        self.assertEqual(movimientos["COSTO_VENTA"]["nombre"], "Costo de venta / salida de inventario")
+        self.assertEqual(Decimal(movimientos["COSTO_VENTA"]["total_debe"]), Decimal("16367.58"))
+        self.assertEqual(Decimal(movimientos["COSTO_VENTA"]["total_haber"]), Decimal("16367.58"))
+        self.assertEqual(
+            {linea["cuenta_codigo"] for linea in movimientos["VENTA"]["detalles"]},
+            {"1101", "4101"},
+        )
+        self.assertEqual(
+            {linea["cuenta_codigo"] for linea in movimientos["COSTO_VENTA"]["detalles"]},
+            {"5101", "1201"},
+        )
+
+        ContabilidadService.contabilizar_venta(response.wsgi_request.user.venta_set.get())
+        self.assertEqual(AsientoContable.objects.filter(origen="VENTA").count(), 1)
+        ContabilidadService.anular_por_origen("VENTA", asiento.referencia)
+        asiento.refresh_from_db()
+        self.assertEqual(asiento.estado, "ANULADO")
+        self.assertEqual(asiento.detalles.count(), 4)
+
+    def test_venta_credito_agrupa_reconocimiento_con_cuentas_por_cobrar(self):
+        response = self.client.post(
+            "/api/ventas/", self.venta_payload(tipo="CREDITO"), format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        asiento = AsientoContable.objects.get(origen="VENTA")
+        reconocimiento = asiento.detalles.filter(tipo_movimiento="VENTA")
+        self.assertEqual(set(reconocimiento.values_list("cuenta__codigo", flat=True)), {"1102", "4101"})
+        self.assertEqual(reconocimiento.count(), 2)
+        self.assertEqual(asiento.detalles.filter(tipo_movimiento="COSTO_VENTA").count(), 2)
 
     def test_asiento_manual_desbalanceado_es_rechazado(self):
         cuentas = list(CuentaContable.objects.filter(codigo__in=["1101", "4101"]))

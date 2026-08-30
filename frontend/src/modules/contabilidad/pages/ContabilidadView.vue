@@ -22,6 +22,8 @@ const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 const asientoDialog = ref(false);
+const detalleDialog = ref(false);
+const asientoSeleccionado = ref(null);
 const cuentaDialog = ref(false);
 const periodoDialog = ref(false);
 const asientos = ref([]);
@@ -160,6 +162,11 @@ function abrirAsiento() {
   asientoDialog.value = true;
 }
 
+function verDetalle(item) {
+  asientoSeleccionado.value = item;
+  detalleDialog.value = true;
+}
+
 async function guardarAsiento() {
   if (!asiento.descripcion || !balanceado.value || asiento.detalles.some((d) => !d.cuenta)) {
     mensaje("Complete un asiento balanceado con todas sus cuentas.", "error");
@@ -275,13 +282,17 @@ onMounted(cargar);
           <v-btn color="primary" prepend-icon="mdi-plus" @click="abrirAsiento">Nuevo asiento</v-btn>
         </v-card-title>
         <v-table>
-          <thead><tr><th>Número</th><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Debe</th><th>Haber</th><th>Estado</th><th /></tr></thead>
+          <thead><tr><th>Número</th><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Monto transacción</th><th>Estado</th><th /></tr></thead>
           <tbody>
             <tr v-for="item in asientos" :key="item.id">
               <td>{{ item.numero }}</td><td>{{ item.fecha }}</td><td>{{ item.descripcion }}</td>
-              <td>{{ item.origen }}</td><td>{{ formatoCRC(item.total_debe) }}</td>
-              <td>{{ formatoCRC(item.total_haber) }}</td><td>{{ item.estado }}</td>
-              <td><v-btn v-if="item.estado === 'BORRADOR'" size="small" variant="tonal" @click="contabilizar(item)">Contabilizar</v-btn></td>
+              <td>{{ item.origen }}</td>
+              <td>{{ item.monto_transaccion == null ? "—" : formatoCRC(item.monto_transaccion) }}</td>
+              <td>{{ item.estado }}</td>
+              <td class="text-no-wrap">
+                <v-btn size="small" variant="text" prepend-icon="mdi-eye" @click="verDetalle(item)">Detalle</v-btn>
+                <v-btn v-if="item.estado === 'BORRADOR'" size="small" variant="tonal" @click="contabilizar(item)">Contabilizar</v-btn>
+              </td>
             </tr>
           </tbody>
         </v-table>
@@ -321,6 +332,43 @@ onMounted(cargar);
         <v-btn class="mt-3" variant="tonal" @click="asiento.detalles.push({ cuenta: null, descripcion: '', debe: 0, haber: 0 })">Agregar línea</v-btn>
         <div class="text-right mt-3">Debe: {{ formatoCRC(totalDebe) }} · Haber: {{ formatoCRC(totalHaber) }}</div>
       </v-card-text><v-card-actions><v-spacer /><v-btn @click="asientoDialog = false">Cancelar</v-btn><v-btn color="primary" @click="guardarAsiento">Guardar</v-btn></v-card-actions></v-card>
+    </v-dialog>
+
+    <v-dialog v-model="detalleDialog" max-width="1000">
+      <v-card v-if="asientoSeleccionado">
+        <v-card-title>{{ asientoSeleccionado.numero }}</v-card-title>
+        <v-card-subtitle>{{ asientoSeleccionado.descripcion }}</v-card-subtitle>
+        <v-card-text>
+          <div v-if="asientoSeleccionado.monto_transaccion != null" class="text-h6 mb-4">
+            Monto de la transacción: {{ formatoCRC(asientoSeleccionado.monto_transaccion) }}
+          </div>
+          <v-card
+            v-for="(movimiento, index) in asientoSeleccionado.movimientos"
+            :key="movimiento.tipo"
+            class="mb-4"
+            variant="outlined"
+          >
+            <v-card-title class="text-subtitle-1">{{ index + 1 }}. {{ movimiento.nombre }}</v-card-title>
+            <v-table density="compact">
+              <thead><tr><th>Cuenta</th><th class="text-right">Debe</th><th class="text-right">Haber</th></tr></thead>
+              <tbody>
+                <tr v-for="linea in movimiento.detalles" :key="linea.id">
+                  <td>{{ linea.cuenta_codigo }} · {{ linea.cuenta_nombre }}</td>
+                  <td class="text-right">{{ Number(linea.debe) ? formatoCRC(linea.debe) : "" }}</td>
+                  <td class="text-right">{{ Number(linea.haber) ? formatoCRC(linea.haber) : "" }}</td>
+                </tr>
+              </tbody>
+              <tfoot><tr><th>Subtotal</th><th class="text-right">{{ formatoCRC(movimiento.total_debe) }}</th><th class="text-right">{{ formatoCRC(movimiento.total_haber) }}</th></tr></tfoot>
+            </v-table>
+          </v-card>
+          <div class="text-right text-subtitle-1">
+            <strong>Total movimientos contables:</strong>
+            Debe {{ formatoCRC(asientoSeleccionado.total_debe) }} ·
+            Haber {{ formatoCRC(asientoSeleccionado.total_haber) }}
+          </div>
+        </v-card-text>
+        <v-card-actions><v-spacer /><v-btn @click="detalleDialog = false">Cerrar</v-btn></v-card-actions>
+      </v-card>
     </v-dialog>
 
     <v-dialog v-model="cuentaDialog" max-width="600"><v-card><v-card-title>Nueva cuenta</v-card-title><v-card-text><v-text-field v-model="cuenta.codigo" label="Código" /><v-text-field v-model="cuenta.nombre" label="Nombre" /><v-select v-model="cuenta.tipo" :items="['ACTIVO','PASIVO','PATRIMONIO','INGRESO','GASTO','COSTO']" label="Tipo" /><v-select v-model="cuenta.naturaleza" :items="['DEUDORA','ACREEDORA']" label="Naturaleza" /></v-card-text><v-card-actions><v-spacer /><v-btn @click="cuentaDialog = false">Cancelar</v-btn><v-btn color="primary" @click="guardarCuenta">Guardar</v-btn></v-card-actions></v-card></v-dialog>

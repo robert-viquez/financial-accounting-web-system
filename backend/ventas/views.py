@@ -1,11 +1,14 @@
 from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import Venta
-from .serializers import VentaSerializer
+from .serializers import (
+    ComprobanteElectronicoSerializer,
+    PrepararComprobanteElectronicoSerializer,
+    VentaSerializer,
+)
 from usuarios.permissions import PuedeOperar
 
 
@@ -75,3 +78,28 @@ class VentaViewSet(viewsets.ModelViewSet):
         from contabilidad.services import ContabilidadService
         ContabilidadService.anular_por_origen("VENTA", venta.pk)
         return Response(self.get_serializer(venta).data)
+
+    @action(detail=True, methods=["post"], url_path="comprobante-electronico/preparar")
+    @transaction.atomic
+    def preparar_comprobante_electronico(self, request, pk=None):
+        """Prepara un borrador interno; no transmite ni simula una respuesta fiscal."""
+        venta = self.get_object()
+        entrada = PrepararComprobanteElectronicoSerializer(data=request.data)
+        entrada.is_valid(raise_exception=True)
+        from .services import FacturacionElectronicaService
+
+        preparacion = FacturacionElectronicaService.validar_datos_preparacion(venta)
+        comprobante = FacturacionElectronicaService.preparar_comprobante(
+            venta, entrada.validated_data["tipo_comprobante"]
+        )
+        data = ComprobanteElectronicoSerializer(comprobante).data
+        data["validacion_preparacion"] = preparacion
+        return Response(data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["get"], url_path="comprobantes-electronicos")
+    def comprobantes_electronicos(self, request, pk=None):
+        venta = self.get_object()
+        from .services import FacturacionElectronicaService
+
+        comprobantes = FacturacionElectronicaService.obtener_comprobantes(venta)
+        return Response(ComprobanteElectronicoSerializer(comprobantes, many=True).data)

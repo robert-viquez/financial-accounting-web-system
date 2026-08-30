@@ -96,6 +96,13 @@ class AsientoContable(models.Model):
     usuario = models.ForeignKey(User, on_delete=models.PROTECT)
     creado_en = models.DateTimeField(auto_now_add=True)
     contabilizado_en = models.DateTimeField(blank=True, null=True)
+    monto_transaccion = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Importe comercial de la operación que originó el asiento.",
+    )
 
     class Meta:
         ordering = ["-fecha", "-id"]
@@ -119,6 +126,19 @@ class AsientoContable(models.Model):
 
 
 class DetalleAsiento(models.Model):
+    TIPOS_MOVIMIENTO = [
+        ("GENERAL", "Movimiento general"),
+        ("VENTA", "Reconocimiento de la venta"),
+        ("COSTO_VENTA", "Costo de venta / salida de inventario"),
+        ("COMPRA", "Reconocimiento de la compra"),
+        ("COBRO", "Cobro de cuenta por cobrar"),
+        ("PAGO", "Pago de cuenta por pagar"),
+        ("IMPUESTO", "Impuestos"),
+        ("RETENCION", "Retenciones"),
+        ("DEVOLUCION", "Devolución"),
+        ("AJUSTE_INVENTARIO", "Ajuste de inventario"),
+    ]
+
     asiento = models.ForeignKey(
         AsientoContable,
         on_delete=models.CASCADE,
@@ -130,6 +150,11 @@ class DetalleAsiento(models.Model):
         related_name="movimientos",
     )
     descripcion = models.CharField(max_length=255, blank=True, default="")
+    tipo_movimiento = models.CharField(
+        max_length=30,
+        choices=TIPOS_MOVIMIENTO,
+        default="GENERAL",
+    )
     debe = models.DecimalField(max_digits=14, decimal_places=2, default=0)
     haber = models.DecimalField(max_digits=14, decimal_places=2, default=0)
 

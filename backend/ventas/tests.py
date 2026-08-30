@@ -1,11 +1,15 @@
+from datetime import timedelta
 from decimal import Decimal
 
-from django.db import IntegrityError
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 from rest_framework import status
 
 from config.test_utils import AccountingAPITestCase
 from inventario.models import MovimientoInventario, UnidadMedida
-from ventas.models import DetalleVenta, Venta
+from contabilidad.models import AsientoContable
+from ventas.models import ComprobanteElectronico, DetalleVenta, Venta
+from ventas.services import FacturacionElectronicaService
 
 
 class VentaTests(AccountingAPITestCase):
@@ -138,3 +142,137 @@ class VentaTests(AccountingAPITestCase):
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.producto.refresh_from_db()
         self.assertEqual(self.producto.stock_actual, Decimal("20.00"))
+
+
+class ComprobanteElectronicoModelTests(AccountingAPITestCase):
+    def setUp(self):
+        super().setUp()
+        response = self.client.post("/api/ventas/", self.venta_payload(), format="json")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.venta = Venta.objects.get(pk=response.data["id"])
+
+    def comprobante(self, **kwargs):
+        datos = {
+            "venta": self.venta,
+            "tipo_comprobante": ComprobanteElectronico.TipoComprobante.FACTURA_ELECTRONICA,
+        }
+        datos.update(kwargs)
+        return ComprobanteElectronico(**datos)
+
+    def test_crea_borrador_asociado_a_venta(self):
+        comprobante = self.comprobante()
+        comprobante.full_clean()
+        comprobante.save()
+        self.assertEqual(comprobante.estado_hacienda, "BORRADOR")
+        self.assertEqual(self.venta.comprobantes_electronicos.get(), comprobante)
+
+    def test_acepta_clave_numerica_de_50_digitos(self):
+        comprobante = self.comprobante(clave_numerica="1" * 50)
+        comprobante.full_clean()
+
+    def test_rechaza_clave_con_longitud_incorrecta(self):
+        with self.assertRaises(ValidationError):
+            self.comprobante(clave_numerica="1" * 49).full_clean()
+
+    def test_rechaza_clave_con_caracteres_no_numericos(self):
+        with self.assertRaises(ValidationError):
+            self.comprobante(clave_numerica=("1" * 49) + "A").full_clean()
+
+    def test_rechaza_clave_duplicada(self):
+        clave = "2" * 50
+        primero = self.comprobante(clave_numerica=clave)
+        primero.full_clean()
+        primero.save()
+        with self.assertRaises(ValidationError):
+            self.comprobante(clave_numerica=clave).full_clean()
+
+    def test_rechaza_fecha_respuesta_anterior_al_envio(self):
+        envio = timezone.now()
+        with self.assertRaises(ValidationError):
+            self.comprobante(
+                fecha_envio=envio,
+                fecha_respuesta=envio - timedelta(seconds=1),
+            ).full_clean()
+
+
+class FacturacionElectronicaServiceTests(AccountingAPITestCase):
+    def setUp(self):
+        super().setUp()
+        response = self.client.post("/api/ventas/", self.venta_payload(), format="json")
+        self.venta = Venta.objects.get(pk=response.data["id"])
+
+    def test_preparar_crea_borrador_sin_efectos_en_venta_inventario_o_contabilidad(self):
+        self.producto.refresh_from_db()
+        stock = self.producto.stock_actual
+        movimientos = MovimientoInventario.objects.count()
+        asientos = AsientoContable.objects.count()
+        datos_venta = (self.venta.total, self.venta.numero_comprobante, self.venta.estado)
+
+        comprobante = FacturacionElectronicaService.preparar_comprobante(
+            self.venta, ComprobanteElectronico.TipoComprobante.FACTURA_ELECTRONICA
+        )
+
+        self.venta.refresh_from_db()
+        self.producto.refresh_from_db()
+        self.assertEqual(comprobante.estado_hacienda, "BORRADOR")
+        self.assertIsNone(comprobante.clave_numerica)
+        self.assertIsNone(comprobante.xml_generado)
+        self.assertEqual(
+            (self.venta.total, self.venta.numero_comprobante, self.venta.estado),
+            datos_venta,
+        )
+        self.assertEqual(self.producto.stock_actual, stock)
+        self.assertEqual(MovimientoInventario.objects.count(), movimientos)
+        self.assertEqual(AsientoContable.objects.count(), asientos)
+
+    def test_validacion_identifica_informacion_fiscal_faltante(self):
+        resultado = FacturacionElectronicaService.validar_datos_preparacion(self.venta)
+        self.assertFalse(resultado["preparado"])
+        self.assertIn("identificacion_cliente", resultado["faltantes"])
+
+
+class ComprobanteElectronicoAPITests(AccountingAPITestCase):
+    def setUp(self):
+        super().setUp()
+        response = self.client.post("/api/ventas/", self.venta_payload(), format="json")
+        self.venta = Venta.objects.get(pk=response.data["id"])
+        self.preparar_url = (
+            f"/api/ventas/{self.venta.pk}/comprobante-electronico/preparar/"
+        )
+
+    def test_preparar_requiere_autenticacion(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.post(
+            self.preparar_url, {"tipo_comprobante": "FACTURA_ELECTRONICA"}, format="json"
+        )
+        self.assertIn(response.status_code, (status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN))
+
+    def test_prepara_y_retorna_borrador(self):
+        response = self.client.post(
+            self.preparar_url, {"tipo_comprobante": "FACTURA_ELECTRONICA"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["venta"], self.venta.pk)
+        self.assertEqual(response.data["numero_comprobante_venta"], self.venta.numero_comprobante)
+        self.assertEqual(response.data["estado_hacienda"], "BORRADOR")
+        self.assertIsNone(response.data["clave_numerica"])
+        self.assertIn("validacion_preparacion", response.data)
+
+    def test_consulta_comprobantes_de_la_venta(self):
+        FacturacionElectronicaService.preparar_comprobante(
+            self.venta, ComprobanteElectronico.TipoComprobante.TIQUETE_ELECTRONICO
+        )
+        response = self.client.get(
+            f"/api/ventas/{self.venta.pk}/comprobantes-electronicos/"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["tipo_comprobante"], "TIQUETE_ELECTRONICO")
+
+    def test_venta_inexistente_retorna_404(self):
+        response = self.client.post(
+            "/api/ventas/999999/comprobante-electronico/preparar/",
+            {"tipo_comprobante": "FACTURA_ELECTRONICA"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 
@@ -36,6 +38,7 @@ class DetalleAsientoSerializer(serializers.ModelSerializer):
         fields = [
             "id", "cuenta", "cuenta_codigo", "cuenta_nombre",
             "descripcion", "debe", "haber",
+            "tipo_movimiento",
         ]
 
 
@@ -44,6 +47,25 @@ class AsientoContableSerializer(serializers.ModelSerializer):
     usuario_nombre = serializers.CharField(source="usuario.username", read_only=True)
     total_debe = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
     total_haber = serializers.DecimalField(max_digits=14, decimal_places=2, read_only=True)
+    movimientos = serializers.SerializerMethodField()
+
+    def get_movimientos(self, obj):
+        grupos = {}
+        for detalle in obj.detalles.all():
+            grupo = grupos.setdefault(detalle.tipo_movimiento, {
+                "tipo": detalle.tipo_movimiento,
+                "nombre": detalle.get_tipo_movimiento_display(),
+                "total_debe": Decimal("0.00"),
+                "total_haber": Decimal("0.00"),
+                "detalles": [],
+            })
+            grupo["total_debe"] += detalle.debe
+            grupo["total_haber"] += detalle.haber
+            grupo["detalles"].append(DetalleAsientoSerializer(detalle).data)
+        for grupo in grupos.values():
+            grupo["total_debe"] = f'{grupo["total_debe"]:.2f}'
+            grupo["total_haber"] = f'{grupo["total_haber"]:.2f}'
+        return list(grupos.values())
 
     class Meta:
         model = AsientoContable
@@ -51,10 +73,12 @@ class AsientoContableSerializer(serializers.ModelSerializer):
             "id", "numero", "fecha", "descripcion", "origen", "referencia",
             "estado", "usuario", "usuario_nombre", "creado_en",
             "contabilizado_en", "total_debe", "total_haber", "detalles",
+            "monto_transaccion", "movimientos",
         ]
         read_only_fields = [
             "numero", "origen", "referencia", "estado", "usuario",
             "creado_en", "contabilizado_en",
+            "monto_transaccion", "movimientos",
         ]
 
     def create(self, validated_data):
