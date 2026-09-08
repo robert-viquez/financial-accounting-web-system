@@ -67,9 +67,6 @@ services:
         condition: service_healthy
     volumes:
       - static_data:/usr/share/nginx/static:ro
-    networks:
-      - default
-      - proxy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
       interval: 10s
@@ -81,8 +78,3 @@ volumes:
   mysql_data:
   media_data:
   static_data:
-
-networks:
-  proxy:
-    external: true
-    name: homeserver-proxy
