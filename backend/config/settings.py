@@ -29,10 +29,11 @@ def env_bool(name, default=False):
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-development-only-change-me",
-)
+SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    if not env_bool("DJANGO_DEBUG", True):
+        raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false")
+    SECRET_KEY = "django-insecure-development-only-change-me"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env_bool("DJANGO_DEBUG", True)
@@ -112,7 +113,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.mysql",
         "NAME": os.getenv("MYSQL_DATABASE", "queso_los_santos"),
         "USER": os.getenv("MYSQL_USER", "root"),
-        "PASSWORD": os.getenv("MYSQL_PASSWORD", "root"),
+        "PASSWORD": os.getenv("MYSQL_PASSWORD", ""),
         "HOST": os.getenv("MYSQL_HOST", "localhost"),
         "PORT": os.getenv("MYSQL_PORT", "3306"),
     }
