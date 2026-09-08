@@ -1,7 +1,7 @@
 from io import StringIO
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
@@ -43,9 +43,12 @@ class SeedDemoIntegrationTests(TestCase):
         self.assertEqual(PagoCliente.objects.count(), 2)
         self.assertFalse(Producto.objects.filter(stock_actual__lt=0).exists())
         demo = User.objects.get(username="demo")
-        self.assertEqual(demo.groups.get().name, "Administrador")
+        self.assertEqual(demo.groups.get().name, "Operaciones")
         self.assertFalse(demo.is_staff)
         self.assertFalse(demo.is_superuser)
+        self.assertTrue(Group.objects.filter(name="Ventas").exists())
+        self.assertTrue(Group.objects.filter(name="Inventario").exists())
+        self.assertTrue(Group.objects.filter(name="Gerencia").exists())
         self.assertTrue(demo.check_password("demo-test-only"))
         self.assertEqual(ConfiguracionEmpresa.objects.get(pk=1).nombre, "ByteForge Technologies")
         self.assertTrue(all(a.total_debe == a.total_haber for a in AsientoContable.objects.all()))

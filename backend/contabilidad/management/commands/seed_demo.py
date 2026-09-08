@@ -4,7 +4,7 @@ import random
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group, Permission, User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 from django.db.models import Q, Sum
@@ -111,15 +111,27 @@ class Command(BaseCommand):
 
     @staticmethod
     def _masters(password):
-        admin, _ = Group.objects.get_or_create(name="Administrador")
-        Group.objects.get_or_create(name="Operaciones")
-        Group.objects.get_or_create(name="Contabilidad")
+        roles = {
+            name: Group.objects.get_or_create(name=name)[0]
+            for name in ["Ventas", "Inventario", "Contabilidad", "Gerencia", "Operaciones"]
+        }
+        permisos_por_rol = {
+            "Ventas": ["ventas", "terceros"],
+            "Inventario": ["inventario"],
+            "Contabilidad": ["contabilidad", "finanzas"],
+            "Gerencia": ["ventas", "compras", "inventario", "contabilidad", "finanzas"],
+            "Operaciones": ["ventas", "compras", "inventario", "terceros", "finanzas"],
+        }
+        for nombre, aplicaciones in permisos_por_rol.items():
+            roles[nombre].permissions.set(
+                Permission.objects.filter(content_type__app_label__in=aplicaciones)
+            )
         username = os.getenv("DEMO_USERNAME", "demo").strip() or "demo"
         demo = User.objects.create_user(
             username, email="demo@byteforge.test", password=password,
             first_name="Usuario", last_name="Demo", is_active=True,
         )
-        demo.groups.add(admin)
+        demo.groups.add(roles["Operaciones"])
         ConfiguracionEmpresa.objects.update_or_create(pk=1, defaults={
             "nombre": "ByteForge Technologies",
             "identificacion": "FICTICIA-DEMO-001",
