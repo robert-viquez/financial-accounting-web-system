@@ -26,9 +26,9 @@ from rest_framework_simplejwt.views import (
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from config.views import health
 
-admin.site.site_header = "Administración técnica de FAWS"
-admin.site.site_title = "Consola técnica"
-admin.site.index_title = "Django Admin · Solo superusuarios"
+admin.site.site_header = "Panel de Administración"
+admin.site.site_title = "Administración"
+admin.site.index_title = "Administración"
 admin.site.has_permission = lambda request: request.user.is_active and request.user.is_superuser
 
 urlpatterns = [

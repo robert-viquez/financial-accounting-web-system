@@ -349,9 +349,9 @@ onBeforeUnmount(() => {
       <v-col v-if="isAdministrator" v-show="activeSection === 'general'" cols="12">
         <v-card class="admin-card" color="primary" variant="tonal">
           <v-card-item prepend-icon="mdi-shield-crown-outline">
-            <v-card-title>Administración técnica</v-card-title>
+            <v-card-title>Panel de Administración</v-card-title>
             <v-card-subtitle>
-              Django Admin · Solo superusuarios. Consola de recuperación e inspección técnica.
+              Consola de recuperación e inspección técnica.
             </v-card-subtitle>
             <template #append>
               <v-btn
@@ -361,7 +361,7 @@ onBeforeUnmount(() => {
                 append-icon="mdi-open-in-new"
                 size="small"
               >
-                Abrir Django Admin
+                Administración
               </v-btn>
             </template>
           </v-card-item>
