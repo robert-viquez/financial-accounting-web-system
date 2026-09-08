@@ -2,6 +2,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
 
+from .models import ConfiguracionEmpresa
+
 
 class AutenticacionTests(APITestCase):
     def test_endpoint_protegido_rechaza_usuario_anonimo(self):
@@ -34,6 +36,11 @@ class AutenticacionTests(APITestCase):
         self.assertTrue(user.check_password("NuevaClave456!"))
 
     def test_configuracion_persistente_solo_administrador_modifica(self):
+        configuracion = ConfiguracionEmpresa.objects.create(
+            pk=1,
+            nombre="Empresa original",
+            lector_codigo_barras=True,
+        )
         user = User.objects.create_user("normal", password="ClaveInicial123!")
         self.client.force_authenticate(user)
         self.assertEqual(
@@ -42,18 +49,29 @@ class AutenticacionTests(APITestCase):
         )
         denied = self.client.patch(
             "/api/configuracion-empresa/",
-            {"nombre": "Empresa"},
+            {"nombre": "Cambio no autorizado", "lector_codigo_barras": False},
             format="json",
         )
         self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+        configuracion.refresh_from_db()
+        self.assertEqual(configuracion.nombre, "Empresa original")
+        self.assertTrue(configuracion.lector_codigo_barras)
+
         user.is_staff = True
         user.save(update_fields=["is_staff"])
         saved = self.client.patch(
             "/api/configuracion-empresa/",
-            {"nombre": "Empresa"},
+            {"lector_codigo_barras": False},
             format="json",
         )
         self.assertEqual(saved.status_code, status.HTTP_200_OK)
+        self.assertFalse(saved.data["lector_codigo_barras"])
+
+        reloaded = self.client.get("/api/configuracion-empresa/")
+        self.assertEqual(reloaded.status_code, status.HTTP_200_OK)
+        self.assertFalse(reloaded.data["lector_codigo_barras"])
+        configuracion.refresh_from_db()
+        self.assertFalse(configuracion.lector_codigo_barras)
 
     def test_configuracion_visual_es_publica_pero_solo_admin_la_modifica(self):
         public_response = self.client.get("/api/identidad-empresa/")

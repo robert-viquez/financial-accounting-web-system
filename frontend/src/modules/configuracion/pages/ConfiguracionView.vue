@@ -165,7 +165,11 @@ async function guardarConfiguracion() {
     const savedConfig = results[1];
     if (savedConfig?.logo) logoPreview.value = savedConfig.logo;
     logoFile.value = null;
-    mensaje("Configuración guardada correctamente.");
+    mensaje(
+      isAdministrator.value
+        ? "Configuración guardada correctamente."
+        : "Perfil actualizado correctamente."
+    );
   } catch (error) {
     mensaje(mensajeError(error, "No se pudo guardar la configuración."), "error");
   } finally {
@@ -334,6 +338,10 @@ onBeforeUnmount(() => {
       subtitle="Parámetros generales, impuestos, usuarios, roles y perfil."
     />
 
+    <v-alert v-if="!isAdministrator" class="mb-4" type="info" variant="tonal" density="compact">
+      La configuración global solo puede ser modificada por administradores.
+    </v-alert>
+
     <v-row>
       <v-col v-if="isAdministrator" cols="12" lg="6">
         <v-card class="admin-card" color="primary" variant="tonal">
@@ -356,7 +364,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col v-if="isAdministrator" cols="12">
+      <v-col cols="12">
         <v-card class="config-card">
           <v-card-title>Identidad visual</v-card-title>
           <v-card-subtitle>
@@ -376,6 +384,7 @@ onBeforeUnmount(() => {
                 prepend-icon="mdi-image-outline"
                 variant="outlined"
                 density="compact"
+                :disabled="!isAdministrator"
                 @update:model-value="seleccionarLogo"
               />
             </div>
@@ -389,19 +398,19 @@ onBeforeUnmount(() => {
           <v-card-text>
             <v-row>
               <v-col cols="12" sm="6">
-                <v-text-field v-model="empresa.nombre" label="Nombre" variant="outlined" density="compact" />
+                <v-text-field v-model="empresa.nombre" label="Nombre" variant="outlined" density="compact" :disabled="!isAdministrator" />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-text-field v-model="empresa.identificacion" label="Identificación" variant="outlined" density="compact" />
+                <v-text-field v-model="empresa.identificacion" label="Identificación" variant="outlined" density="compact" :disabled="!isAdministrator" />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-text-field v-model="empresa.telefono" label="Teléfono" variant="outlined" density="compact" />
+                <v-text-field v-model="empresa.telefono" label="Teléfono" variant="outlined" density="compact" :disabled="!isAdministrator" />
               </v-col>
               <v-col cols="12" sm="6">
-                <v-text-field v-model="empresa.correo" label="Correo" variant="outlined" density="compact" />
+                <v-text-field v-model="empresa.correo" label="Correo" variant="outlined" density="compact" :disabled="!isAdministrator" />
               </v-col>
               <v-col cols="12">
-                <v-textarea v-model="empresa.direccion" label="Dirección" variant="outlined" density="compact" rows="2" />
+                <v-textarea v-model="empresa.direccion" label="Dirección" variant="outlined" density="compact" rows="2" :disabled="!isAdministrator" />
               </v-col>
             </v-row>
           </v-card-text>
@@ -422,6 +431,7 @@ onBeforeUnmount(() => {
                   maxlength="8"
                   variant="outlined"
                   density="compact"
+                  :disabled="!isAdministrator"
                 />
               </v-col>
               <v-col cols="12">
@@ -430,6 +440,7 @@ onBeforeUnmount(() => {
                   label="Habilitar uso de lectores de código de barras"
                   color="primary"
                   hide-details
+                  :disabled="!isAdministrator"
                 />
               </v-col>
             </v-row>
@@ -550,7 +561,7 @@ onBeforeUnmount(() => {
           <v-card-text>
             <v-row>
               <v-col cols="12" sm="6">
-                <v-text-field v-model.number="impuestos.iva" label="IVA (%)" type="number" variant="outlined" density="compact" />
+                <v-text-field v-model.number="impuestos.iva" label="IVA (%)" type="number" variant="outlined" density="compact" :disabled="!isAdministrator" />
               </v-col>
               <v-col cols="12" sm="6">
                 <v-select
@@ -559,6 +570,7 @@ onBeforeUnmount(() => {
                   label="Moneda"
                   variant="outlined"
                   density="compact"
+                  :disabled="!isAdministrator"
                 />
               </v-col>
             </v-row>
@@ -645,7 +657,7 @@ onBeforeUnmount(() => {
 
     <div class="d-flex justify-end mt-4">
       <v-btn color="primary" prepend-icon="mdi-content-save" :loading="saving" @click="guardarConfiguracion">
-        Guardar configuración
+        {{ isAdministrator ? "Guardar configuración" : "Guardar perfil" }}
       </v-btn>
     </div>
 
