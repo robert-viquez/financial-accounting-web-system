@@ -33,10 +33,17 @@ MYSQL_ROOT_PASSWORD=choose-a-different-root-password
 
 FRONTEND_BIND_ADDRESS=127.0.0.1
 FRONTEND_PORT=5173
+VITE_DEMO_MODE=true
+VITE_DEMO_USERNAME=demo
+VITE_DEMO_PASSWORD=<public-demo-password>
 ALLOW_DEMO_SEED=true
 DEMO_USERNAME=demo
-DEMO_PASSWORD=choose-a-strong-demo-password
+DEMO_PASSWORD=<public-demo-password>
 ```
+
+All three `VITE_DEMO_*` variables shown above are required for the public demo. They are compiled into the browser bundle when the frontend image is built, so their values are client-visible and must be treated as public, never as secrets. Use them only for the non-privileged `demo` account, and set `VITE_DEMO_PASSWORD` to the same value as the backend `DEMO_PASSWORD` so the preloaded form can authenticate normally. Never reuse this password for MySQL, Django superusers, Cloudflare, or any infrastructure account.
+
+Demo login prefill is enabled only when `VITE_DEMO_MODE` is exactly `true`. With the default `false` value, the fields remain empty and no demo notice is rendered. Changing a `VITE_*` value requires rebuilding the frontend image; `docker compose up` alone does not update values already compiled into the bundle.
 
 `DJANGO_TRUST_X_FORWARDED_PROTO=true` makes Django trust the sanitized `X-Forwarded-Proto: https` passed through Nginx. Nginx accepts only the exact incoming value `https`; otherwise it uses its own scheme. Loopback binding prevents untrusted LAN clients from reaching that proxy directly. HTTPS redirection is left off because Cloudflare already redirects/terminates HTTPS and the container health check uses HTTP. Enable HSTS only after validating HTTPS for the chosen hostname.
 
@@ -57,7 +64,7 @@ Seeding is explicit and never runs for a clean installation:
 docker compose exec backend python manage.py seed_demo --reset --seed 20260828
 ```
 
-This creates a deterministic, interconnected, entirely fictional ByteForge Technologies dataset and a normal application user from `DEMO_USERNAME` and `DEMO_PASSWORD`. The user belongs to the existing `Administrador` application group but is neither Django staff nor a superuser.
+This creates a deterministic, interconnected, entirely fictional ByteForge Technologies dataset and a normal application user from `DEMO_USERNAME` and `DEMO_PASSWORD`. The user belongs to the existing `Operaciones` application group but is neither Django staff nor a superuser (`is_staff=False`, `is_superuser=False`).
 
 The host reset wrapper applies migrations, resets/reseeds through the Django command, and retries the externally facing Nginx health endpoint. It does not delete volumes or uploaded media, and `flock` rejects overlapping runs:
 
@@ -89,7 +96,7 @@ Back up the MySQL named volume before an update if its current state matters. Th
 
 ## Clean installations and troubleshooting
 
-For a clean installation, keep `ALLOW_DEMO_SEED=false`, omit demo credentials, and never run `seed_demo`. Migrations alone produce an empty application ready for configuration.
+For a clean installation, keep `VITE_DEMO_MODE=false` and `ALLOW_DEMO_SEED=false`, leave all frontend and backend demo credential values blank, and never run `seed_demo`. Migrations alone produce an empty application ready for configuration, while the login form remains unchanged with empty fields and no demo notice.
 
 - If Compose rejects configuration, confirm all required database and secret values exist in `.env`.
 - If Django reports `DisallowedHost`, add the exact public hostname to `DJANGO_ALLOWED_HOSTS`.

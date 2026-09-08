@@ -7,8 +7,9 @@ import defaultLogo from "@/assets/byteforge-logo.svg";
 
 const router = useRouter();
 
-const username = ref("");
-const password = ref("");
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+const username = ref(demoMode ? import.meta.env.VITE_DEMO_USERNAME || "" : "");
+const password = ref(demoMode ? import.meta.env.VITE_DEMO_PASSWORD || "" : "");
 const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
@@ -47,6 +48,7 @@ async function handleLogin() {
       <img class="login-logo" :src="logoUrl" :alt="`Logo de ${empresaNombre}`" />
       <h1>{{ empresaNombre }}</h1>
       <p class="login-subtitle">Sistema financiero-contable</p>
+      <p v-if="demoMode" class="demo-notice">Credenciales de demostración precargadas.</p>
 
       <form @submit.prevent="handleLogin">
         <label for="username">Usuario</label>
@@ -133,6 +135,17 @@ h1 {
 .login-subtitle {
   color: #4b5563;
   margin-bottom: 24px;
+}
+
+.demo-notice {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.9rem;
+  margin: -8px 0 20px;
+  padding: 10px 12px;
+  text-align: center;
 }
 
 form {

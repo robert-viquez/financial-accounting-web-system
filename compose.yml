@@ -54,6 +54,11 @@ services:
   frontend:
     build:
       context: frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/}
+        VITE_DEMO_MODE: ${VITE_DEMO_MODE:-false}
+        VITE_DEMO_USERNAME: ${VITE_DEMO_USERNAME:-}
+        VITE_DEMO_PASSWORD: ${VITE_DEMO_PASSWORD:-}
     restart: unless-stopped
     ports:
       - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-5173}:80"
