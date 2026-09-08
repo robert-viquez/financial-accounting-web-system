@@ -1,5 +1,7 @@
 from django.contrib import admin
-from .models import ComprobanteElectronico, Venta, DetalleVenta
+from .models import ComprobanteElectronico, Venta, DetalleVenta, TipoVenta
+
+admin.site.register(TipoVenta)
 
 
 class DetalleVentaInline(admin.TabularInline):

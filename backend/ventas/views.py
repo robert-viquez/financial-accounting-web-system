@@ -3,11 +3,12 @@ from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from .models import Venta
+from .models import Venta, TipoVenta
 from .serializers import (
     ComprobanteElectronicoSerializer,
     PrepararComprobanteElectronicoSerializer,
     VentaSerializer,
+    TipoVentaSerializer,
 )
 from usuarios.permissions import PuedeOperar
 
@@ -103,3 +104,19 @@ class VentaViewSet(viewsets.ModelViewSet):
 
         comprobantes = FacturacionElectronicaService.obtener_comprobantes(venta)
         return Response(ComprobanteElectronicoSerializer(comprobantes, many=True).data)
+
+
+class TipoVentaViewSet(viewsets.ModelViewSet):
+    queryset = TipoVenta.objects.all().order_by("nombre")
+    serializer_class = TipoVentaSerializer
+    permission_classes = [PuedeOperar]
+    filterset_fields = ["estado"]
+    search_fields = ["codigo", "nombre"]
+
+    def perform_destroy(self, instance):
+        if Venta.objects.filter(tipo_venta=instance.codigo).exists():
+            from rest_framework.exceptions import ValidationError
+            raise ValidationError(
+                {"detail": "No se puede eliminar un tipo usado en ventas. Puede desactivarlo."}
+            )
+        instance.delete()

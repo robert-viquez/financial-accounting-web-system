@@ -11,7 +11,7 @@ class FinanzasService:
     @staticmethod
     @transaction.atomic
     def crear_cuenta_por_cobrar_desde_venta(venta, dias_credito=None):
-        if venta.tipo_venta != "CREDITO":
+        if not venta.es_credito:
             return None
 
         if not venta.cliente:

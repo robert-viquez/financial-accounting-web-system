@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import ComprobanteElectronico, Venta, DetalleVenta
+from .models import ComprobanteElectronico, Venta, DetalleVenta, TipoVenta
 from terceros.models import Cliente
 
 class DetalleVentaSerializer(serializers.ModelSerializer):
@@ -39,6 +39,7 @@ class DetalleVentaSerializer(serializers.ModelSerializer):
 
 
 class VentaSerializer(serializers.ModelSerializer):
+    tipo_venta = serializers.CharField(max_length=20)
     detalles = DetalleVentaSerializer(many=True)
     cliente_nombre = serializers.CharField(
         source="cliente.nombre",
@@ -84,6 +85,12 @@ class VentaSerializer(serializers.ModelSerializer):
             "estado",
         ]
 
+    def validate_tipo_venta(self, value):
+        codigo = value.strip().upper()
+        if not TipoVenta.objects.filter(codigo=codigo, estado=True).exists():
+            raise serializers.ValidationError("Seleccione un tipo de venta activo.")
+        return codigo
+
     @transaction.atomic
     def create(self, validated_data):
         from django.core.exceptions import ValidationError as DjangoValidationError
@@ -117,6 +124,21 @@ class VentaSerializer(serializers.ModelSerializer):
             return venta
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages) from exc
+
+
+class TipoVentaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoVenta
+        fields = "__all__"
+
+    def validate_codigo(self, value):
+        codigo = value.strip().upper().replace(" ", "_")
+        if self.instance and self.instance.codigo != codigo:
+            if Venta.objects.filter(tipo_venta=self.instance.codigo).exists():
+                raise serializers.ValidationError(
+                    "No se puede cambiar el código porque ya fue usado en ventas."
+                )
+        return codigo
 
 
 class ComprobanteElectronicoSerializer(serializers.ModelSerializer):

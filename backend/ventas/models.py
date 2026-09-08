@@ -7,6 +7,25 @@ from terceros.models import Cliente, MedioPago
 from inventario.models import Producto
 
 
+class TipoVenta(models.Model):
+    codigo = models.CharField(max_length=20, unique=True)
+    nombre = models.CharField(max_length=50, unique=True)
+    estado = models.BooleanField(default=True)
+    genera_credito = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Tipo de venta"
+        verbose_name_plural = "Tipos de venta"
+        ordering = ["nombre"]
+
+    def save(self, *args, **kwargs):
+        self.codigo = self.codigo.strip().upper().replace(" ", "_")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.nombre
+
+
 class Venta(models.Model):
     TIPO_VENTA = [
         ("CONTADO", "Contado"),
@@ -40,6 +59,11 @@ class Venta(models.Model):
         from .services import VentaService
 
         VentaService.recalcular_totales_venta(self)
+
+    @property
+    def es_credito(self):
+        catalogo = TipoVenta.objects.filter(codigo=self.tipo_venta).only("genera_credito").first()
+        return catalogo.genera_credito if catalogo else self.tipo_venta == "CREDITO"
 
     def __str__(self):
         return self.numero_comprobante

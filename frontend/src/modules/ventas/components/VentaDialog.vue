@@ -14,6 +14,10 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  tiposVenta: {
+    type: Array,
+    default: () => [],
+  },
   productos: {
     type: Array,
     default: () => [],
@@ -85,7 +89,10 @@ function resetForm() {
     props.mediosPago.find(
       (medio) => medio.nombre?.trim().toLowerCase() === "efectivo"
     )?.id ?? props.mediosPago[0]?.id ?? null;
-  form.tipo_venta = "CONTADO";
+  form.tipo_venta =
+    props.tiposVenta.find(({ codigo }) => codigo === "CONTADO")?.codigo ??
+    props.tiposVenta[0]?.codigo ??
+    null;
   form.descuento = 0;
   form.observaciones = "";
   form.detalles = [
@@ -340,10 +347,9 @@ async function guardar() {
         <v-col cols="12" sm="6" lg="4">
           <v-select
             v-model="form.tipo_venta"
-            :items="[
-              { title: 'Contado', value: 'CONTADO' },
-              { title: 'Crédito', value: 'CREDITO' },
-            ]"
+            :items="tiposVenta"
+            item-title="nombre"
+            item-value="codigo"
             label="Tipo de venta"
             variant="outlined"
             density="compact"

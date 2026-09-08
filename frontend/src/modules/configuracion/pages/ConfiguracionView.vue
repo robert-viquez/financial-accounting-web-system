@@ -19,6 +19,18 @@ import {
   updateUnidadMedida,
 } from "@/modules/inventario/api/ProductosServices";
 import defaultLogo from "@/assets/queso-los-santos-logo.png";
+import {
+  createMedioPago,
+  deleteMedioPago,
+  getMediosPago,
+  updateMedioPago,
+} from "@/modules/terceros/api/MediosPagoServices";
+import {
+  createTipoVenta,
+  deleteTipoVenta,
+  getTiposVenta,
+  updateTipoVenta,
+} from "@/modules/ventas/api/ventasService";
 
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -45,6 +57,10 @@ const inventario = reactive({
   prefijo_productos: "",
 });
 const unidades = ref([]);
+const mediosPago = ref([]);
+const tiposVenta = ref([]);
+const nuevoMedioPago = reactive({ nombre: "", estado: true });
+const nuevoTipoVenta = reactive({ codigo: "", nombre: "", estado: true, genera_credito: false });
 const nuevaUnidad = reactive({
   codigo: "",
   nombre: "",
@@ -95,11 +111,13 @@ function mensajeError(error, fallback) {
 
 async function cargarConfiguracion() {
   try {
-    const [config, currentProfile, roleData, unitData] = await Promise.all([
+    const [config, currentProfile, roleData, unitData, paymentData, saleTypeData] = await Promise.all([
       getConfiguracion(),
       getPerfil(),
       getRoles(),
       getUnidadesMedida({ ordering: "nombre" }),
+      getMediosPago({ ordering: "nombre", page_size: 100 }),
+      getTiposVenta({ ordering: "nombre", page_size: 100 }),
     ]);
     empresa.nombre = config.nombre || "";
     empresa.identificacion = config.identificacion || "";
@@ -116,6 +134,8 @@ async function cargarConfiguracion() {
     perfil.is_staff = currentProfile.is_staff;
     roles.value = roleData;
     unidades.value = unitData.results ?? unitData;
+    mediosPago.value = paymentData.results ?? paymentData;
+    tiposVenta.value = saleTypeData.results ?? saleTypeData;
     try {
       const userData = await getUsuarios();
       usuarios.value = userData.results ?? userData;
@@ -218,6 +238,69 @@ async function eliminarUnidad(unidad) {
       "No se puede eliminar una unidad que ya está asignada a productos. Puede desactivarla.",
       "error"
     );
+  }
+}
+
+async function agregarMedioPago() {
+  if (!nuevoMedioPago.nombre.trim()) return mensaje("Digite el nombre del medio de pago.", "error");
+  try {
+    mediosPago.value.push(await createMedioPago({ ...nuevoMedioPago, nombre: nuevoMedioPago.nombre.trim() }));
+    Object.assign(nuevoMedioPago, { nombre: "", estado: true });
+    mensaje("Medio de pago agregado.");
+  } catch (error) {
+    mensaje(mensajeError(error, "No se pudo agregar el medio de pago."), "error");
+  }
+}
+
+async function guardarMedioPago(item) {
+  try {
+    await updateMedioPago(item.id, { nombre: item.nombre, estado: item.estado });
+    mensaje("Medio de pago actualizado.");
+  } catch (error) {
+    mensaje(mensajeError(error, "No se pudo actualizar el medio de pago."), "error");
+  }
+}
+
+async function eliminarMedioPagoItem(item) {
+  try {
+    await deleteMedioPago(item.id);
+    mediosPago.value = mediosPago.value.filter(({ id }) => id !== item.id);
+    mensaje("Medio de pago eliminado.");
+  } catch {
+    mensaje("No se puede eliminar un medio usado en transacciones. Puede desactivarlo.", "error");
+  }
+}
+
+async function agregarTipoVenta() {
+  if (!nuevoTipoVenta.codigo.trim() || !nuevoTipoVenta.nombre.trim()) {
+    return mensaje("Complete el código y nombre del tipo de venta.", "error");
+  }
+  try {
+    tiposVenta.value.push(await createTipoVenta({ ...nuevoTipoVenta }));
+    Object.assign(nuevoTipoVenta, { codigo: "", nombre: "", estado: true, genera_credito: false });
+    mensaje("Tipo de venta agregado.");
+  } catch (error) {
+    mensaje(mensajeError(error, "No se pudo agregar el tipo de venta."), "error");
+  }
+}
+
+async function guardarTipoVenta(item) {
+  try {
+    const actualizado = await updateTipoVenta(item.id, item);
+    Object.assign(item, actualizado);
+    mensaje("Tipo de venta actualizado.");
+  } catch (error) {
+    mensaje(mensajeError(error, "No se pudo actualizar el tipo de venta."), "error");
+  }
+}
+
+async function eliminarTipoVentaItem(item) {
+  try {
+    await deleteTipoVenta(item.id);
+    tiposVenta.value = tiposVenta.value.filter(({ id }) => id !== item.id);
+    mensaje("Tipo de venta eliminado.");
+  } catch {
+    mensaje("No se pudo eliminar el tipo de venta. Puede desactivarlo.", "error");
   }
 }
 
@@ -362,6 +445,7 @@ onBeforeUnmount(() => {
           </v-card-subtitle>
           <v-card-text>
             <div class="units-list">
+              <div v-if="!unidades.length" class="empty-message">No hay datos disponibles.</div>
               <div
                 v-for="unidad in unidades"
                 :key="unidad.id"
@@ -391,12 +475,63 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
+      <v-col cols="12" lg="6">
+        <v-card class="config-card">
+          <v-card-title>Métodos de pago</v-card-title>
+          <v-card-subtitle>Opciones disponibles al registrar ventas y cobros.</v-card-subtitle>
+          <v-card-text class="catalog-list">
+            <div v-if="!mediosPago.length" class="empty-message">No hay datos disponibles.</div>
+            <div v-for="item in mediosPago" :key="item.id" class="catalog-row">
+              <v-text-field v-model="item.nombre" label="Nombre" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="item.estado" label="Activo" color="primary" hide-details />
+              <div class="unit-actions">
+                <v-btn icon="mdi-content-save" variant="tonal" color="primary" size="small" @click="guardarMedioPago(item)" />
+                <v-btn icon="mdi-delete" variant="text" color="error" size="small" @click="eliminarMedioPagoItem(item)" />
+              </div>
+            </div>
+            <div class="catalog-row catalog-row--new">
+              <v-text-field v-model="nuevoMedioPago.nombre" label="Nuevo método de pago" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="nuevoMedioPago.estado" label="Activo" color="primary" hide-details />
+              <v-btn color="primary" prepend-icon="mdi-plus" @click="agregarMedioPago">Agregar</v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
+      <v-col cols="12" lg="6">
+        <v-card class="config-card">
+          <v-card-title>Tipos de venta</v-card-title>
+          <v-card-subtitle>Clasificaciones disponibles al crear una venta.</v-card-subtitle>
+          <v-card-text class="catalog-list">
+            <div v-if="!tiposVenta.length" class="empty-message">No hay datos disponibles.</div>
+            <div v-for="item in tiposVenta" :key="item.id" class="sale-type-row">
+              <v-text-field v-model="item.codigo" label="Código" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="item.nombre" label="Nombre" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="item.estado" label="Activo" color="primary" hide-details />
+              <v-switch v-model="item.genera_credito" label="Genera crédito" color="primary" hide-details />
+              <div class="unit-actions">
+                <v-btn icon="mdi-content-save" variant="tonal" color="primary" size="small" @click="guardarTipoVenta(item)" />
+                <v-btn icon="mdi-delete" variant="text" color="error" size="small" @click="eliminarTipoVentaItem(item)" />
+              </div>
+            </div>
+            <div class="sale-type-row catalog-row--new">
+              <v-text-field v-model="nuevoTipoVenta.codigo" label="Código nuevo" variant="outlined" density="compact" hide-details />
+              <v-text-field v-model="nuevoTipoVenta.nombre" label="Nombre nuevo" variant="outlined" density="compact" hide-details />
+              <v-switch v-model="nuevoTipoVenta.estado" label="Activo" color="primary" hide-details />
+              <v-switch v-model="nuevoTipoVenta.genera_credito" label="Genera crédito" color="primary" hide-details />
+              <v-btn color="primary" prepend-icon="mdi-plus" @click="agregarTipoVenta">Agregar</v-btn>
+            </div>
+          </v-card-text>
+        </v-card>
+      </v-col>
+
       <v-col cols="12">
         <v-card>
           <v-card-title>Auditoría reciente</v-card-title>
           <v-table density="compact">
             <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Ruta</th><th>Resultado</th></tr></thead>
             <tbody>
+              <tr v-if="!auditoria.length"><td colspan="5" class="empty-cell">No hay datos disponibles.</td></tr>
               <tr v-for="item in auditoria" :key="item.id">
                 <td>{{ new Date(item.fecha).toLocaleString("es-CR") }}</td>
                 <td>{{ item.usuario_nombre }}</td>
@@ -481,6 +616,7 @@ onBeforeUnmount(() => {
               </tr>
             </thead>
             <tbody>
+              <tr v-if="!usuarios.length"><td colspan="3" class="empty-cell">No hay datos disponibles.</td></tr>
               <tr v-for="usuario in usuarios" :key="usuario.nombre">
                 <td>{{ usuario.nombre }}</td>
                 <td>{{ usuario.roles?.join(", ") || "Sin rol" }}</td>
@@ -495,6 +631,7 @@ onBeforeUnmount(() => {
         <v-card>
           <v-card-title>Roles</v-card-title>
           <v-list density="compact">
+            <v-list-item v-if="!roles.length" title="No hay datos disponibles." />
             <v-list-item
               v-for="rol in roles"
               :key="rol.nombre"
@@ -558,6 +695,27 @@ onBeforeUnmount(() => {
   gap: 12px;
 }
 
+.catalog-list {
+  display: grid;
+  gap: 12px;
+}
+
+.catalog-row,
+.sale-type-row {
+  align-items: center;
+  border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.catalog-row { grid-template-columns: minmax(180px, 1fr) 100px auto; }
+.sale-type-row { grid-template-columns: 120px minmax(150px, 1fr) 90px 130px auto; }
+.catalog-row--new { background: rgba(var(--v-theme-primary), 0.06); }
+.empty-message, .empty-cell { color: rgba(var(--v-theme-on-surface), 0.6); text-align: center; }
+.empty-cell { padding: 24px !important; }
+
 .unit-row {
   align-items: center;
   border: 1px solid rgba(var(--v-border-color), var(--v-border-opacity));
@@ -596,6 +754,11 @@ onBeforeUnmount(() => {
   }
 
   .unit-row {
+    grid-template-columns: 1fr;
+  }
+
+  .catalog-row,
+  .sale-type-row {
     grid-template-columns: 1fr;
   }
 }

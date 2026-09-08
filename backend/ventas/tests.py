@@ -8,11 +8,35 @@ from rest_framework import status
 from config.test_utils import AccountingAPITestCase
 from inventario.models import MovimientoInventario, UnidadMedida
 from contabilidad.models import AsientoContable
-from ventas.models import ComprobanteElectronico, DetalleVenta, Venta
+from ventas.models import ComprobanteElectronico, DetalleVenta, TipoVenta, Venta
 from ventas.services import FacturacionElectronicaService
 
 
 class VentaTests(AccountingAPITestCase):
+    def test_tipo_venta_personalizado_credito_crea_cuenta_por_cobrar(self):
+        TipoVenta.objects.create(
+            codigo="CREDITO_ESPECIAL",
+            nombre="Crédito especial",
+            genera_credito=True,
+        )
+        payload = self.venta_payload()
+        payload["tipo_venta"] = "CREDITO_ESPECIAL"
+
+        response = self.client.post("/api/ventas/", payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertTrue(Venta.objects.get().cuenta_por_cobrar)
+
+    def test_rechaza_tipo_venta_inactivo(self):
+        TipoVenta.objects.create(codigo="INACTIVO", nombre="Inactivo", estado=False)
+        payload = self.venta_payload()
+        payload["tipo_venta"] = "INACTIVO"
+
+        response = self.client.post("/api/ventas/", payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("tipo_venta", response.data)
+
     def test_venta_por_peso_usa_la_misma_cantidad_en_detalle_movimiento_y_stock(self):
         kg, _ = UnidadMedida.objects.get_or_create(
             codigo="KG", defaults={"nombre": "Kilogramo", "simbolo": "kg", "permite_decimales": True}

@@ -66,7 +66,7 @@ class VentaService:
     def finalizar_venta(venta):
         VentaService.recalcular_totales_venta(venta)
 
-        if venta.tipo_venta == "CREDITO":
+        if venta.es_credito:
             from finanzas.services import FinanzasService
 
             FinanzasService.crear_cuenta_por_cobrar_desde_venta(venta)

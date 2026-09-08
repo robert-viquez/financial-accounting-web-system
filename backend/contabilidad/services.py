@@ -144,7 +144,7 @@ class ContabilidadService:
     @staticmethod
     def contabilizar_venta(venta):
         cuentas = ContabilidadService.asegurar_catalogo_base()
-        contrapartida = cuentas["1102"] if venta.tipo_venta == "CREDITO" else cuentas["1101"]
+        contrapartida = cuentas["1102"] if venta.es_credito else cuentas["1101"]
         costo = sum(
             (
                 detalle.cantidad * detalle.producto.costo_promedio

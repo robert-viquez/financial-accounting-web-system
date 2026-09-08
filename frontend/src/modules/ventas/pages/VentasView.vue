@@ -9,7 +9,7 @@ import { useDebounce } from "@/composables/useDebounce";
 import { usePersistentFilters } from "@/composables/usePersistentFilters";
 import { useServerTable } from "@/composables/useServerTable";
 
-import { createVenta, deleteVenta, getVentas } from "../api/ventasService";
+import { createVenta, deleteVenta, getTiposVenta, getVentas } from "../api/ventasService";
 import { getClientes } from "@/modules/clientes/api/ClientesServices";
 import { getProductos } from "@/modules/inventario/api/ProductosServices";
 import { getMediosPago } from "@/modules/terceros/api/MediosPagoServices";
@@ -20,6 +20,7 @@ const totalItems = ref(0);
 const clientes = ref([]);
 const productos = ref([]);
 const mediosPago = ref([]);
+const tiposVenta = ref([]);
 const loading = ref(false);
 const saving = ref(false);
 const dialog = ref(false);
@@ -104,7 +105,7 @@ function formatoFecha(fecha) {
 }
 
 function etiquetaTipoVenta(tipo) {
-  return tipo === "CREDITO" ? "Crédito" : "Contado";
+  return tiposVenta.value.find(({ codigo }) => codigo === tipo)?.nombre || tipo;
 }
 
 function colorTipoVenta(tipo) {
@@ -158,11 +159,13 @@ async function cargarCatalogos() {
       page_size: 100,
       estado: true,
     });
-    const mediosPagoResponse = await getMediosPago({ ordering: "nombre" });
+    const mediosPagoResponse = await getMediosPago({ ordering: "nombre", estado: true });
+    const tiposVentaResponse = await getTiposVenta({ ordering: "nombre", estado: true });
 
     clientes.value = clientesResponse.results ?? clientesResponse;
     productos.value = productosResponse.results ?? productosResponse;
     mediosPago.value = mediosPagoResponse.results ?? mediosPagoResponse;
+    tiposVenta.value = tiposVentaResponse.results ?? tiposVentaResponse;
     try {
       const config = await getConfiguracion();
       lectorHabilitado.value = config.lector_codigo_barras !== false;
@@ -189,7 +192,7 @@ async function guardarVenta(data) {
     dialog.value = false;
 
     const mensaje =
-      data.tipo_venta === "CREDITO"
+      tiposVenta.value.find(({ codigo }) => codigo === data.tipo_venta)?.genera_credito
         ? "Venta a crédito registrada. Se creó la cuenta por cobrar automáticamente."
         : "Venta registrada correctamente. El inventario fue actualizado.";
 
@@ -266,6 +269,7 @@ onMounted(async () => {
         :loading="loading"
         :items-per-page="options.itemsPerPage"
         item-value="id"
+        no-data-text="No hay datos disponibles."
         @update:options="onTableOptions"
       >
         <template #item.cliente_nombre="{ item }">
@@ -321,6 +325,7 @@ onMounted(async () => {
       :clientes="clientes"
       :productos="productos"
       :medios-pago="mediosPago"
+      :tipos-venta="tiposVenta"
       :loading="saving"
       :lector-habilitado="lectorHabilitado"
       @save="guardarVenta"
