@@ -1,18 +1,17 @@
-# Financial Accounting Web System (FAWS)
+
+<td width="62%"><img src="docs/screenshots/dashboard.png" alt="FAWS operational dashboard"></td>
+
+# Financial Accounting Web System (I call it FAWS for short)
 
 **Django · Vue · MySQL · Docker Compose · GitHub Actions · Cloudflare Tunnel**
 
 [![CI](https://github.com/robert-viquez/financial-accounting-web-system/actions/workflows/ci.yml/badge.svg)](https://github.com/robert-viquez/financial-accounting-web-system/actions/workflows/ci.yml)
 
-A full-stack financial and accounting system that connects sales, purchases, inventory, receivables, payables, and double-entry accounting. FAWS is also a deployed systems project: its public portfolio demo runs as a containerized application behind Cloudflare Tunnel, with health checks, persistent storage, continuous integration, and deterministic data resets.
+A full-stack financial and accounting system that connects sales, purchases, inventory, receivables, payables, and double-entry accounting. FAWS is also a deployed systems project: its public portfolio demo runs as a containerized application behind Cloudflare Tunnel, with health checks, persistent storage and Continuous Integration.
 
 **[Open Live Demo](https://faws.robertviquez.com)** · **[Documentation](docs/)** · **[Architecture](#deployment-architecture)**
 
-## Live Demo
-
-**[https://faws.robertviquez.com](https://faws.robertviquez.com)**
-
-The public environment contains an entirely fictional **ByteForge Technologies** dataset. Demo credentials are prefilled on the login screen and authenticate through the normal application flow. The `demo` user is a non-staff, non-superuser business account; Django Admin is separately protected and is not part of the public demo.
+The demo environment contains a fictional **ByteForge Technologies** dataset. Demo credentials are prefilled on the login screen and authenticate through the normal application flow. The `demo` user is a non-staff, non-superuser business account.
 
 Demo business data is restored automatically every six hours. Do not enter personal, confidential, or production information.
 
@@ -26,7 +25,7 @@ Demo business data is restored automatically every six hours. Do not enter perso
 - Provides JWT authentication, native Django role-based access control, and an audit trail.
 - Exposes an OpenAPI schema, Swagger UI, and a database-aware health endpoint.
 
-## Product Tour
+## Tour
 
 ### Demo access and operational dashboard
 
@@ -62,7 +61,7 @@ Demo business data is restored automatically every six hours. Do not enter perso
     <td width="50%"><img src="docs/screenshots/configs_company.png" alt="FAWS company configuration"></td>
   </tr>
   <tr>
-    <td align="center"><sub>Date-filtered operational and accounting reports with PDF and XLSX export.</sub></td>
+    <td align="center"><sub>Date-filtered operational and accounting reports with PDF and XLSX export options.</sub></td>
     <td align="center"><sub>Configurable company identity, branding, tax rate, and currency.</sub></td>
   </tr>
 </table>
@@ -109,8 +108,6 @@ flowchart TD
     D --> V[(Media and static volumes)]
 ```
 
-`cloudflared` is operated by a separate homeserver infrastructure stack; it is not a service in the FAWS Compose project. The tunnel reaches the Nginx frontend origin through a shared Docker proxy network. Nginx serves the compiled Vue application and proxies `/api/` to Gunicorn on the internal application network. MySQL and Django/Gunicorn are not publicly exposed, and the deployment requires no router port forwarding. Tunnel credentials and private network details are not stored in this repository.
-
 For deployment configuration and operational limitations, see the [portfolio demo deployment guide](docs/deployment-demo.md).
 
 ## Technical highlights
@@ -123,7 +120,7 @@ For deployment configuration and operational limitations, see the [portfolio dem
 | Access control | Simple JWT plus native Django users, groups, and permissions |
 | Operations | Environment-based configuration and deterministic, lock-protected demo reset |
 | Delivery | GitHub Actions checks and image builds; deployment remains an operator-managed process |
-| Public access | Cloudflare Tunnel from a separately managed infrastructure stack |
+| Public access | Cloudflare Tunnel |
 
 ## Continuous integration
 
@@ -135,21 +132,8 @@ The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pull requests an
 
 CI validates the application and container builds. Continuous deployment is not implemented in this repository.
 
-## Deterministic demo reset
 
-[`scripts/reset-demo.sh`](scripts/reset-demo.sh) restores the portfolio environment every six hours on the demo server. It:
-
-- verifies that the database, backend, and frontend services are running;
-- applies Django migrations before resetting data;
-- rebuilds a deterministic, interconnected fictional dataset;
-- restores the public `demo` user and business demo state;
-- preserves technical superusers;
-- verifies application health after the reset; and
-- uses a lock to prevent overlapping reset jobs.
-
-The reset is explicitly guarded by `ALLOW_DEMO_SEED=true` and is never enabled for a normal installation.
-
-## Clean installation
+## Installation
 
 A default Docker installation is intentionally separate from the public portfolio demo:
 
@@ -211,7 +195,7 @@ npm run build
 ```text
 .
 ├── backend/              # Django project and business modules
-├── frontend/             # Vue/Vite SPA and production Nginx config
+├── frontend/             # Vue/Vite SPA and production Nginx config  
 ├── docker/               # Container entrypoint
 ├── docs/                 # Deployment notes and product screenshots
 ├── scripts/              # Demo reset tooling
@@ -223,12 +207,7 @@ With the application running, Swagger UI is available at `/api/docs/`, the OpenA
 
 ## Project context
 
-FAWS began as a university graduation project for a small-business accounting use case and continues as a portfolio project focused on full-stack engineering, systems administration, containerization, and cloud connectivity. ByteForge Technologies is only the fictional public-demo dataset; clean installations have no preset company identity.
-
-## Author
-
-Robert Viquez Santos<br>
-[GitHub](https://github.com/robert-viquez) · [Portfolio](https://robertviquez.com)
+FAWS began as a university graduation project for a small-business accounting use case and continues as a portfolio project focused on full-stack engineering, systems administration, containerization, and cloud connectivity. ByteForge Technologies the fictional public-demo dataset; clean installations have no preset company identity.
 
 ## License
 
