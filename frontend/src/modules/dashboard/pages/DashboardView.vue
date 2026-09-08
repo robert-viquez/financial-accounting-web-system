@@ -617,6 +617,7 @@ onMounted(cargarDashboard);
 
 <style scoped>
 .dashboard-view {
+  --dashboard-card-gap: 16px;
   min-width: 0;
   overflow-x: hidden;
 }
@@ -631,11 +632,11 @@ onMounted(cargarDashboard);
 .dashboard-row {
   margin-bottom: 0;
   margin-top: 0;
-  row-gap: 0;
+  row-gap: var(--dashboard-card-gap);
 }
 
 .dashboard-row + .dashboard-row {
-  margin-top: 12px;
+  margin-top: var(--dashboard-card-gap);
 }
 
 .kpi-card :deep(.v-card-text) {
