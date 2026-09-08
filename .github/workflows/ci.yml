@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+      - name: Check Django configuration
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_USE_SQLITE_TESTS: "true"
+        run: python backend/manage.py check
+      - name: Run backend tests
+        env:
+          DJANGO_DEBUG: "true"
+          DJANGO_USE_SQLITE_TESTS: "true"
+        run: python backend/manage.py test
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint:check
+      - run: npm run build
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build application images
+        run: |
+          docker build -f backend/Dockerfile -t accounting-backend .
+          docker build -t accounting-frontend frontend
