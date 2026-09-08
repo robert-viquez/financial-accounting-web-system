@@ -14,7 +14,15 @@ cleanup() {
   docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
   docker volume rm "$VOLUME" >/dev/null 2>&1 || true
 }
+report_failure() {
+  exit_code=$?
+  line="${BASH_LINENO[0]:-1}"
+  echo "::error file=scripts/smoke-clean-install.sh,line=${line}::Standalone smoke test failed (exit ${exit_code})."
+  docker logs "$CONTAINER" 2>&1 || true
+  exit "$exit_code"
+}
 trap cleanup EXIT
+trap report_failure ERR
 cleanup
 
 docker run -d --name "$CONTAINER" -p "${PORT}:80" -v "${VOLUME}:/data" "$IMAGE" >/dev/null
