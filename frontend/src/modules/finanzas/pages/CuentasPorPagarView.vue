@@ -394,6 +394,7 @@ onMounted(async () => {
             </tr>
           </thead>
           <tbody>
+            <tr v-if="!pagosCuenta.length"><td colspan="6" class="text-center pa-6">No hay datos disponibles.</td></tr>
             <tr v-for="pago in pagosCuenta" :key="pago.id">
               <td>{{ formatoFecha(pago.fecha) }}</td>
               <td>{{ pago.medio_pago_nombre }}</td>

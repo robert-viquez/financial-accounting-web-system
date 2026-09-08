@@ -284,6 +284,7 @@ onMounted(cargar);
         <v-table>
           <thead><tr><th>Número</th><th>Fecha</th><th>Descripción</th><th>Origen</th><th>Monto transacción</th><th>Estado</th><th /></tr></thead>
           <tbody>
+            <tr v-if="!asientos.length"><td colspan="7" class="text-center pa-6">No hay datos disponibles.</td></tr>
             <tr v-for="item in asientos" :key="item.id">
               <td>{{ item.numero }}</td><td>{{ item.fecha }}</td><td>{{ item.descripcion }}</td>
               <td>{{ item.origen }}</td>
@@ -303,7 +304,7 @@ onMounted(cargar);
           Catálogo de cuentas<v-spacer /><v-btn color="primary" @click="cuentaDialog = true">Nueva cuenta</v-btn>
         </v-card-title>
         <v-table><thead><tr><th>Código</th><th>Nombre</th><th>Tipo</th><th>Naturaleza</th><th>Activa</th></tr></thead>
-          <tbody><tr v-for="item in cuentas" :key="item.id"><td>{{ item.codigo }}</td><td>{{ item.nombre }}</td><td>{{ item.tipo }}</td><td>{{ item.naturaleza }}</td><td>{{ item.estado ? "Sí" : "No" }}</td></tr></tbody>
+          <tbody><tr v-if="!cuentas.length"><td colspan="5" class="text-center pa-6">No hay datos disponibles.</td></tr><tr v-for="item in cuentas" :key="item.id"><td>{{ item.codigo }}</td><td>{{ item.nombre }}</td><td>{{ item.tipo }}</td><td>{{ item.naturaleza }}</td><td>{{ item.estado ? "Sí" : "No" }}</td></tr></tbody>
         </v-table>
       </template>
 
@@ -312,7 +313,7 @@ onMounted(cargar);
           Periodos contables<v-spacer /><v-btn color="primary" @click="periodoDialog = true">Nuevo periodo</v-btn>
         </v-card-title>
         <v-table><thead><tr><th>Nombre</th><th>Inicio</th><th>Fin</th><th>Estado</th><th /></tr></thead>
-          <tbody><tr v-for="item in periodos" :key="item.id"><td>{{ item.nombre }}</td><td>{{ item.fecha_inicio }}</td><td>{{ item.fecha_fin }}</td><td>{{ item.cerrado ? "Cerrado" : "Abierto" }}</td><td><v-btn size="small" variant="tonal" @click="cambiarEstadoPeriodo(item)">{{ item.cerrado ? "Reabrir" : "Cerrar" }}</v-btn></td></tr></tbody>
+          <tbody><tr v-if="!periodos.length"><td colspan="5" class="text-center pa-6">No hay datos disponibles.</td></tr><tr v-for="item in periodos" :key="item.id"><td>{{ item.nombre }}</td><td>{{ item.fecha_inicio }}</td><td>{{ item.fecha_fin }}</td><td>{{ item.cerrado ? "Cerrado" : "Abierto" }}</td><td><v-btn size="small" variant="tonal" @click="cambiarEstadoPeriodo(item)">{{ item.cerrado ? "Reabrir" : "Cerrar" }}</v-btn></td></tr></tbody>
         </v-table>
       </template>
     </v-card>

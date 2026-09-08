@@ -395,6 +395,7 @@ onMounted(cargarDashboard);
           <v-card-title class="text-subtitle-1">Ventas por mes</v-card-title>
           <v-card-text>
             <div class="bar-chart">
+              <v-empty-state v-if="!ventasPorMes.length" title="No hay datos disponibles." />
               <div v-for="item in ventasPorMes" :key="item.label" class="bar-row">
                 <span class="bar-label">{{ item.label }}</span>
                 <div class="bar-track">
@@ -415,6 +416,7 @@ onMounted(cargarDashboard);
           <v-card-title class="text-subtitle-1">Compras por mes</v-card-title>
           <v-card-text>
             <div class="bar-chart">
+              <v-empty-state v-if="!comprasPorMes.length" title="No hay datos disponibles." />
               <div v-for="item in comprasPorMes" :key="item.label" class="bar-row">
                 <span class="bar-label">{{ item.label }}</span>
                 <div class="bar-track">
@@ -466,6 +468,7 @@ onMounted(cargarDashboard);
           <v-card-title class="text-subtitle-1">Productos con menor stock</v-card-title>
           <v-card-text>
             <v-list density="compact" lines="two">
+              <v-list-item v-if="!productosMenorStock.length" title="No hay datos disponibles." />
               <v-list-item
                 v-for="item in productosMenorStock"
                 :key="item.label"
@@ -501,6 +504,7 @@ onMounted(cargarDashboard);
               </tr>
             </thead>
             <tbody>
+              <tr v-if="!ultimasVentas.length"><td colspan="4" class="text-center pa-6">No hay datos disponibles.</td></tr>
               <tr v-for="venta in ultimasVentas" :key="venta.id">
                 <td>{{ venta.numero_comprobante }}</td>
                 <td>{{ venta.cliente_nombre || "Consumidor final" }}</td>
@@ -525,6 +529,7 @@ onMounted(cargarDashboard);
               </tr>
             </thead>
             <tbody>
+              <tr v-if="!ultimasCompras.length"><td colspan="4" class="text-center pa-6">No hay datos disponibles.</td></tr>
               <tr v-for="compra in ultimasCompras" :key="compra.id">
                 <td>{{ compra.numero_factura }}</td>
                 <td>{{ compra.proveedor_nombre }}</td>
@@ -551,6 +556,7 @@ onMounted(cargarDashboard);
               </tr>
             </thead>
             <tbody>
+              <tr v-if="!cuentasPorCobrarPendientes.length"><td colspan="4" class="text-center pa-6">No hay datos disponibles.</td></tr>
               <tr v-for="cuenta in cuentasPorCobrarPendientes" :key="cuenta.id">
                 <td>{{ cuenta.venta_numero }}</td>
                 <td>{{ cuenta.cliente_nombre }}</td>
@@ -577,6 +583,7 @@ onMounted(cargarDashboard);
               </tr>
             </thead>
             <tbody>
+              <tr v-if="!cuentasPorPagarPendientes.length"><td colspan="4" class="text-center pa-6">No hay datos disponibles.</td></tr>
               <tr v-for="cuenta in cuentasPorPagarPendientes" :key="cuenta.id">
                 <td>{{ cuenta.compra_numero }}</td>
                 <td>{{ cuenta.proveedor_nombre }}</td>
