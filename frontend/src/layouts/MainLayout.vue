@@ -194,29 +194,35 @@ onBeforeUnmount(() => {
           @click="isMobile && (drawer = false)"
         />
 
-        <v-list-group
-          v-for="group in menuGroups"
-          :key="group.title"
-          :value="group.title"
-        >
-          <template #activator="{ props }">
-            <v-list-item
-              v-bind="props"
-              :prepend-icon="group.icon"
-              :title="group.title"
-              rounded="lg"
-            />
-          </template>
+        <template v-for="group in menuGroups" :key="group.title">
           <v-list-item
-            v-for="item in group.items"
-            :key="item.to"
-            :to="item.to"
-            :prepend-icon="item.icon"
-            :title="item.title"
+            v-if="rail && !isMobile"
+            :prepend-icon="group.icon"
+            :title="group.title"
             rounded="lg"
-            @click="isMobile && (drawer = false)"
+            @click.stop="rail = false"
           />
-        </v-list-group>
+
+          <v-list-group v-else :value="group.title">
+            <template #activator="{ props }">
+              <v-list-item
+                v-bind="props"
+                :prepend-icon="group.icon"
+                :title="group.title"
+                rounded="lg"
+              />
+            </template>
+            <v-list-item
+              v-for="item in group.items"
+              :key="item.to"
+              :to="item.to"
+              :prepend-icon="item.icon"
+              :title="item.title"
+              rounded="lg"
+              @click="isMobile && (drawer = false)"
+            />
+          </v-list-group>
+        </template>
 
         <v-list-item
           v-for="item in standaloneItems.slice(1)"
