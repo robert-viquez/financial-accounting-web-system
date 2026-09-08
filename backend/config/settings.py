@@ -29,7 +29,13 @@ def env_list(name, default=""):
     return [value.strip() for value in os.getenv(name, default).split(",") if value.strip()]
 
 
+DATA_DIR = Path(os.getenv("FAWS_DATA_DIR", BASE_DIR))
+
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
+if not SECRET_KEY:
+    secret_file = Path(os.getenv("DJANGO_SECRET_KEY_FILE", DATA_DIR / ".django_secret_key"))
+    if secret_file.is_file():
+        SECRET_KEY = secret_file.read_text(encoding="utf-8").strip()
 if not SECRET_KEY:
     if not env_bool("DJANGO_DEBUG", True):
         raise RuntimeError("DJANGO_SECRET_KEY must be set when DJANGO_DEBUG is false")
@@ -104,7 +110,6 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATA_DIR = Path(os.getenv("FAWS_DATA_DIR", BASE_DIR))
 DATABASE_ENGINE = os.getenv("DATABASE_ENGINE", "mysql").lower()
 
 if DATABASE_ENGINE == "sqlite":
