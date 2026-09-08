@@ -6,18 +6,18 @@ readonly DEPLOY_DIR="/docker/faws-demo/financial-accounting-web-system"
 readonly HEALTH_URL="http://127.0.0.1:5173/api/health/"
 readonly HEALTH_ATTEMPTS=20
 readonly HEALTH_DELAY_SECONDS=5
-readonly COMPOSE_FILES="-f compose.yml -f compose.homeserver.yml"
+readonly COMPOSE_FILES="-f compose.yml -f compose.demo.yml"
 
 cd "$DEPLOY_DIR"
 
-echo "Fetching origin/main..."
-git fetch --prune origin main
+echo "Fetching origin/demo..."
+git fetch --prune origin demo
 
-remote_commit="$(git rev-parse origin/main)"
+remote_commit="$(git rev-parse origin/demo)"
 expected_commit="${EXPECTED_COMMIT:-$remote_commit}"
 
 if [[ "$remote_commit" != "$expected_commit" ]]; then
-  echo "Skipping superseded deployment: validated commit $expected_commit is no longer origin/main ($remote_commit)."
+  echo "Skipping superseded deployment: validated commit $expected_commit is no longer origin/demo ($remote_commit)."
   exit 0
 fi
 

@@ -1,6 +1,6 @@
 # Portfolio demo deployment
 
-This is the earth-2 portfolio-demo topology, not a generic production blueprint. The portable services remain on their default Compose network, while `compose.homeserver.yml` additionally connects only the frontend to the pre-existing `homeserver-proxy` network.
+This is the earth-2 portfolio-demo topology, not a generic production blueprint. The portable services remain on their default Compose network, while `compose.demo.yml` additionally connects only the frontend to the pre-existing `homeserver-proxy` network.
 
 ```text
 Browser → Cloudflare → centrally managed cloudflared
@@ -11,6 +11,8 @@ Browser → Cloudflare → centrally managed cloudflared
 ```
 
 The repository contains no tunnel credentials or `cloudflared` service. The tunnel remains managed in the host's central Cloudflare stack and reaches the frontend through `homeserver-proxy`.
+
+The deployed source of truth is the `demo` branch. Pushes to `main` do not deploy this environment. A push to `demo` runs the complete CI workflow and starts the self-hosted deployment job only after every validation job succeeds.
 
 ## Configure and start
 
@@ -50,8 +52,8 @@ Demo login prefill is enabled only when `VITE_DEMO_MODE` is exactly `true`. With
 The external `homeserver-proxy` network must already exist on earth-2. Start and verify the demo with both files:
 
 ```bash
-docker compose -f compose.yml -f compose.homeserver.yml up -d --build
-docker compose -f compose.yml -f compose.homeserver.yml ps
+docker compose -f compose.yml -f compose.demo.yml up -d --build
+docker compose -f compose.yml -f compose.demo.yml ps
 curl --fail http://127.0.0.1:5173/api/health/
 ```
 
@@ -60,7 +62,7 @@ curl --fail http://127.0.0.1:5173/api/health/
 Seeding is explicit and never runs for a clean installation:
 
 ```bash
-docker compose -f compose.yml -f compose.homeserver.yml exec backend \
+docker compose -f compose.yml -f compose.demo.yml exec backend \
   python manage.py seed_demo --reset --seed 20260828
 ```
 
@@ -84,9 +86,9 @@ The cron user needs permission to run Docker and write the selected log. Test th
 ## Updating
 
 ```bash
-git pull
-docker compose -f compose.yml -f compose.homeserver.yml up -d --build
-docker compose -f compose.yml -f compose.homeserver.yml ps
+git pull origin demo
+docker compose -f compose.yml -f compose.demo.yml up -d --build
+docker compose -f compose.yml -f compose.demo.yml ps
 curl --fail http://127.0.0.1:5173/api/health/
 ./scripts/reset-demo.sh
 ```
@@ -102,7 +104,7 @@ After setup, anonymous calls to create another initial administrator return `403
 - If Compose rejects configuration, confirm all required database and secret values exist in `.env`.
 - If Django reports `DisallowedHost`, add the exact public hostname to `DJANGO_ALLOWED_HOSTS`.
 - If browser requests fail, use the exact HTTPS origin (scheme and hostname, without a path) in CORS and CSRF settings.
-- If health fails, inspect `docker compose -f compose.yml -f compose.homeserver.yml ps` and the corresponding `logs backend frontend db` output.
+- If health fails, inspect `docker compose -f compose.yml -f compose.demo.yml ps` and the corresponding `logs backend frontend db` output.
 - If reset reports another run, inspect the process before removing the lock file; the lock is released automatically when the process exits.
 - Keep `.env`, database exports, customer data, and Cloudflare tunnel tokens outside version control.
 

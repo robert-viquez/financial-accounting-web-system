@@ -4,7 +4,7 @@ set -eu
 PROJECT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 LOCK_FILE=${FAWS_DEMO_LOCK_FILE:-/tmp/faws-demo-reset.lock}
 HEALTH_URL=${FAWS_HEALTH_URL:-http://127.0.0.1:5173/api/health/}
-COMPOSE_FILES="-f compose.yml -f compose.homeserver.yml"
+COMPOSE_FILES="-f compose.yml -f compose.demo.yml"
 
 command -v docker >/dev/null 2>&1 || { echo "error: docker is required" >&2; exit 1; }
 command -v flock >/dev/null 2>&1 || { echo "error: flock is required" >&2; exit 1; }
