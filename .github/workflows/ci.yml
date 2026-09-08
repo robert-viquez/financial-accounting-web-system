@@ -9,40 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  deployment-metadata:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Determine whether this push changes the deployed application
-        id: runtime-changes
-        shell: bash
-        run: |
-          set -Eeuo pipefail
-
-          deploy=false
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
-            before="${{ github.event.before }}"
-            after="${{ github.sha }}"
-
-            if [[ "$before" == "0000000000000000000000000000000000000000" ]]; then
-              changed_files="$(git ls-tree -r --name-only "$after")"
-            else
-              changed_files="$(git diff --name-only "$before" "$after")"
-            fi
-
-            if grep -Eq '^(backend/|frontend/|docker/|scripts/|compose(\.homeserver)?\.yml$|requirements\.txt$)' <<<"$changed_files"; then
-              deploy=true
-            fi
-          fi
-
-          printf 'deploy=%s\ncommit=%s\n' "$deploy" "${{ github.sha }}" > deployment-metadata.txt
-      - uses: actions/upload-artifact@v4
-        with:
-          name: deployment-metadata
-          path: deployment-metadata.txt
-          retention-days: 1
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -53,8 +19,7 @@ jobs:
           cache: pip
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y default-libmysqlclient-dev pkg-config
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt
       - name: Check Django configuration
         env:
           DJANGO_DEBUG: "true"
@@ -80,20 +45,16 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
       - run: npm run lint:check
+      - run: npm test
       - run: npm run build
 
-  docker:
+  standalone-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Build application images
-        run: |
-          docker build -f backend/Dockerfile -t accounting-backend .
-          docker build -t accounting-frontend frontend
-
-  clean-install:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify clean Docker installation and first-run setup
+      - name: Build standalone application image
+        run: docker build -t faws:smoke .
+      - name: Verify clean install, first administrator, login, and persistence
+        env:
+          IMAGE: faws:smoke
         run: ./scripts/smoke-clean-install.sh
