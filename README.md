@@ -9,6 +9,10 @@
 
 A full-stack financial and accounting system that connects sales, purchases, inventory, receivables, payables, and double-entry accounting. FAWS is also a deployed systems project: its public portfolio demo runs as a containerized application behind Cloudflare Tunnel, with health checks, persistent storage and Continuous Integration.
 
+The interface supports Spanish and English. FAWS resolves the language from the
+user preference, application default, and browser language (in that order), with
+Spanish as the final fallback. Language selection is available before and after sign-in.
+
 **[Open Live Demo](https://faws.robertviquez.com)** · **[Documentation](docs/)** · **[Architecture](#deployment-architecture)**
 
 The demo environment contains a fictional **ByteForge Technologies** dataset. Demo credentials are prefilled on the login screen and authenticate through the normal application flow. The `demo` user is a non-staff, non-superuser business account.

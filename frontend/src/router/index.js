@@ -24,73 +24,73 @@ const routes = [
       {
         path: "dashboard",
         component: DashboardView,
-        meta: { title: "Inicio" },
+        meta: { titleKey: "navigation.home" },
       },
       {
         path: "clientes",
         component: () => import("@/modules/clientes/pages/ClientesView.vue"),
-        meta: { title: "Clientes" },
+        meta: { titleKey: "navigation.customers" },
       },
       {
         path: "proveedores",
         component: () =>
           import("@/modules/proveedores/pages/ProveedoresView.vue"),
-        meta: { title: "Proveedores" },
+        meta: { titleKey: "navigation.suppliers" },
       },
       {
         path: "inventario",
         component: () => import("@/modules/inventario/pages/ProductosView.vue"),
-        meta: { title: "Inventario" },
+        meta: { titleKey: "navigation.inventory" },
       },
       {
         path: "movimientos-inventario",
         component: () =>
           import("@/modules/inventario/pages/MovimientosView.vue"),
-        meta: { title: "Movimientos de inventario" },
+        meta: { titleKey: "navigation.movements" },
       },
       {
         path: "categorias",
         component: () => import("@/modules/inventario/pages/CategoriasView.vue"),
-        meta: { title: "Categorías" },
+        meta: { titleKey: "navigation.categories" },
       },
       {
         path: "compras",
         component: () => import("@/modules/compras/pages/ComprasView.vue"),
-        meta: { title: "Compras" },
+        meta: { titleKey: "navigation.purchases" },
       },
       {
         path: "ventas",
         component: () => import("@/modules/ventas/pages/VentasView.vue"),
-        meta: { title: "Ventas" },
+        meta: { titleKey: "navigation.sales" },
       },
       {
         path: "cuentas-cobrar",
         component: () =>
           import("@/modules/finanzas/pages/CuentasPorCobrarView.vue"),
-        meta: { title: "Cuentas por cobrar" },
+        meta: { titleKey: "navigation.receivables" },
       },
       {
         path: "cuentas-pagar",
         component: () =>
           import("@/modules/finanzas/pages/CuentasPorPagarView.vue"),
-        meta: { title: "Cuentas por pagar" },
+        meta: { titleKey: "navigation.payables" },
       },
       {
         path: "contabilidad",
         component: () =>
           import("@/modules/contabilidad/pages/ContabilidadView.vue"),
-        meta: { title: "Contabilidad" },
+        meta: { titleKey: "navigation.accounting" },
       },
       {
         path: "reportes",
         component: () => import("@/modules/reportes/pages/ReportesView.vue"),
-        meta: { title: "Reportes" },
+        meta: { titleKey: "navigation.reports" },
       },
       {
         path: "configuracion",
         component: () =>
           import("@/modules/configuracion/pages/ConfiguracionView.vue"),
-        meta: { title: "Configuración" },
+        meta: { titleKey: "navigation.settings" },
       },
     ],
   },

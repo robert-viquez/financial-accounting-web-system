@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { onMounted, ref, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -44,11 +45,11 @@ function normalizar(response) {
 
 function formatoFecha(value) {
   if (!value) return "";
-  return new Date(value).toLocaleString("es-CR");
+  return new Date(value).toLocaleString(currentIntlLocale());
 }
 
 function formatoNumero(value) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     maximumFractionDigits: 3,
   }).format(Number(value || 0));
 }

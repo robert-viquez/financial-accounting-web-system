@@ -1,0 +1,50 @@
+{
+  "common": {
+    "save": "Save", "cancel": "Cancel", "delete": "Delete", "edit": "Edit",
+    "add": "Add", "new": "New", "search": "Search", "clear": "Clear",
+    "close": "Close", "confirm": "Confirm", "actions": "Actions", "status": "Status",
+    "active": "Active", "inactive": "Inactive", "yes": "Yes", "no": "No",
+    "loading": "Loading...", "noData": "No data available", "all": "All",
+    "from": "From", "to": "To", "date": "Date", "name": "Name", "code": "Code",
+    "description": "Description", "quantity": "Quantity", "price": "Price", "total": "Total",
+    "email": "Email", "phone": "Phone", "address": "Address", "identifier": "Identifier",
+    "success": "Operation completed successfully.", "error": "The operation could not be completed.",
+    "required": "This field is required.", "select": "Select an option",
+    "form": "Form", "confirmAction": "Confirm action", "continueQuestion": "Do you want to continue?",
+    "scanBarcode": "Scan barcode"
+  },
+  "language": {
+    "label": "Language", "spanish": "Español", "english": "English",
+    "inherit": "Use default", "auto": "Automatic from browser",
+    "default": "Default language"
+  },
+  "auth": {
+    "systemName": "Financial accounting system", "username": "Username", "password": "Password",
+    "login": "Sign in", "loggingIn": "Signing in...", "logout": "Sign out",
+    "showPassword": "Show password", "hidePassword": "Hide password",
+    "loginError": "Unable to sign in.", "demoCredentials": "Demo credentials are prefilled."
+  },
+  "navigation": {
+    "mainMenu": "Main menu", "home": "Home", "page": "Page", "operations": "Operations",
+    "sales": "Sales", "purchases": "Purchases", "customers": "Customers", "suppliers": "Suppliers",
+    "inventory": "Inventory", "products": "Products", "movements": "Movements",
+    "categories": "Categories", "accounting": "Accounting", "accountingSummary": "Accounting summary",
+    "receivables": "Accounts receivable", "payables": "Accounts payable", "reports": "Reports",
+    "settings": "Settings", "toggleMenu": "Open or close menu", "toggleDesktopMenu": "Expand or collapse menu",
+    "toggleTheme": "Change theme (Ctrl+D)", "appTitle": "Financial Accounting Web System", "companyLogo": "Logo of {name}"
+  },
+  "settings": {
+    "title": "Settings", "subtitle": "General parameters, taxes, users, roles, and profile.",
+    "adminOnly": "Only administrators can change global settings.",
+    "general": "General", "company": "Company", "inventory": "Inventory", "sales": "Sales",
+    "usersAccess": "Users and access", "rolesPermissions": "Roles and permissions", "audit": "Audit",
+    "profile": "My profile", "saved": "Settings saved successfully.",
+    "profileSaved": "Profile updated successfully.", "loadError": "Settings could not be loaded.",
+    "saveError": "Settings could not be saved.", "defaultLanguageHint": "Used when the user has not selected a language.",
+    "profileLanguageHint": "This preference takes precedence over the default language.",
+    "saveSettings": "Save settings", "saveProfile": "Save profile"
+  },
+  "roles": {
+    "Gerencia": "Management", "Ventas": "Sales", "Inventario": "Inventory", "Contabilidad": "Accounting", "Operaciones": "Operations"
+  }
+}

@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { computed, onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -80,7 +81,7 @@ function mensaje(texto, color = "success") {
 }
 
 function formatoCRC(value) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
   }).format(Number(value || 0));

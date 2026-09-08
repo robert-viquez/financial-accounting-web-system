@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { computed, reactive, ref, watch } from "vue";
 import BaseCrudDialog from "@/components/common/BaseCrudDialog.vue";
 import BarcodeScannerInput from "@/components/common/BarcodeScannerInput.vue";
@@ -197,7 +198,7 @@ function getSubtotal(detalle) {
 }
 
 function formatoCRC(valor) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
   }).format(Number(valor || 0));

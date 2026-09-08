@@ -2,16 +2,21 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { useDisplay, useTheme } from "vuetify";
+import { useLocale as useVuetifyLocale } from "vuetify";
+import { useI18n } from "vue-i18n";
 import { storeToRefs } from "pinia";
 import { logout } from "@/modules/auth/authService";
 import { useUiStore } from "@/stores/ui";
-import { getConfiguracion } from "@/modules/configuracion/api/configuracionService";
+import { getConfiguracion, updatePerfil } from "@/modules/configuracion/api/configuracionService";
 import defaultLogo from "@/assets/byteforge-logo.svg";
+import { applyLocale } from "@/i18n";
 
 const router = useRouter();
 const route = useRoute();
 const display = useDisplay();
 const theme = useTheme();
+const vuetifyLocale = useVuetifyLocale();
+const { locale, t } = useI18n();
 const uiStore = useUiStore();
 const { isDark } = storeToRefs(uiStore);
 const drawer = ref(true);
@@ -23,49 +28,60 @@ const isMobile = computed(() => display.smAndDown.value);
 const isDesktop = computed(() => display.mdAndUp.value);
 const drawerWidth = computed(() => (display.lgAndUp.value ? 260 : 232));
 const breadcrumbs = computed(() => [
-  { title: "Inicio", to: "/dashboard", disabled: route.path === "/dashboard" },
+  { title: t("navigation.home"), to: "/dashboard", disabled: route.path === "/dashboard" },
   {
-    title: route.meta.title || "Página",
+    title: route.meta.titleKey ? t(route.meta.titleKey) : t("navigation.page"),
     disabled: true,
   },
 ]);
 
-const menuGroups = [
+const menuGroups = computed(() => [
   {
-    title: "Operaciones",
+    title: t("navigation.operations"),
     icon: "mdi-storefront-outline",
     items: [
-      { title: "Ventas", icon: "mdi-cash-register", to: "/ventas" },
-      { title: "Compras", icon: "mdi-cart-arrow-down", to: "/compras" },
-      { title: "Clientes", icon: "mdi-account-group", to: "/clientes" },
-      { title: "Proveedores", icon: "mdi-truck", to: "/proveedores" },
+      { title: t("navigation.sales"), icon: "mdi-cash-register", to: "/ventas" },
+      { title: t("navigation.purchases"), icon: "mdi-cart-arrow-down", to: "/compras" },
+      { title: t("navigation.customers"), icon: "mdi-account-group", to: "/clientes" },
+      { title: t("navigation.suppliers"), icon: "mdi-truck", to: "/proveedores" },
     ],
   },
   {
-    title: "Inventario",
+    title: t("navigation.inventory"),
     icon: "mdi-package-variant",
     items: [
-      { title: "Productos", icon: "mdi-package-variant", to: "/inventario" },
-      { title: "Movimientos", icon: "mdi-swap-horizontal", to: "/movimientos-inventario" },
-      { title: "Categorías", icon: "mdi-shape", to: "/categorias" },
+      { title: t("navigation.products"), icon: "mdi-package-variant", to: "/inventario" },
+      { title: t("navigation.movements"), icon: "mdi-swap-horizontal", to: "/movimientos-inventario" },
+      { title: t("navigation.categories"), icon: "mdi-shape", to: "/categorias" },
     ],
   },
   {
-    title: "Contabilidad",
+    title: t("navigation.accounting"),
     icon: "mdi-book-open-page-variant",
     items: [
-      { title: "Resumen contable", icon: "mdi-book-open-page-variant", to: "/contabilidad" },
-      { title: "Cuentas por cobrar", icon: "mdi-cash-clock", to: "/cuentas-cobrar" },
-      { title: "Cuentas por pagar", icon: "mdi-credit-card-clock", to: "/cuentas-pagar" },
+      { title: t("navigation.accountingSummary"), icon: "mdi-book-open-page-variant", to: "/contabilidad" },
+      { title: t("navigation.receivables"), icon: "mdi-cash-clock", to: "/cuentas-cobrar" },
+      { title: t("navigation.payables"), icon: "mdi-credit-card-clock", to: "/cuentas-pagar" },
     ],
   },
-];
+]);
 
-const standaloneItems = [
-  { title: "Inicio", icon: "mdi-view-dashboard", to: "/dashboard" },
-  { title: "Reportes", icon: "mdi-chart-box", to: "/reportes" },
-  { title: "Configuración", icon: "mdi-cog", to: "/configuracion" },
-];
+const standaloneItems = computed(() => [
+  { title: t("navigation.home"), icon: "mdi-view-dashboard", to: "/dashboard" },
+  { title: t("navigation.reports"), icon: "mdi-chart-box", to: "/reportes" },
+  { title: t("navigation.settings"), icon: "mdi-cog", to: "/configuracion" },
+]);
+
+async function changeLanguage(value) {
+  applyLocale(value);
+  locale.value = value;
+  vuetifyLocale.current.value = value;
+  try {
+    await updatePerfil({ locale: value });
+  } catch {
+    // Keep the selected UI locale even if preference synchronization fails.
+  }
+}
 
 function toggleMenu() {
   if (isMobile.value) drawer.value = !drawer.value;
@@ -153,21 +169,21 @@ onBeforeUnmount(() => {
         :class="{ 'brand--rail': rail && !isMobile }"
         :style="{ backgroundImage: `url(${logoUrl})` }"
         role="img"
-        :aria-label="`Logo de ${empresaNombre}`"
+        :aria-label="$t('navigation.companyLogo', { name: empresaNombre })"
       >
         <div v-if="!rail || isMobile" class="brand-copy">
           <h2 class="text-subtitle-1 text-lg-h6 font-weight-bold">
             {{ empresaNombre }}
           </h2>
           <p class="text-caption mb-0">
-            Sistema financiero-contable
+            {{ $t("auth.systemName") }}
           </p>
         </div>
       </div>
 
       <v-divider />
 
-      <v-list nav density="comfortable" aria-label="Menú principal">
+      <v-list nav density="comfortable" :aria-label="$t('navigation.mainMenu')">
         <v-list-item
           v-for="item in standaloneItems.slice(0, 1)"
           :key="item.to"
@@ -216,17 +232,22 @@ onBeforeUnmount(() => {
 
     <v-app-bar elevation="1">
       <v-app-bar-nav-icon
-        :aria-label="isMobile ? 'Abrir o cerrar menú' : 'Expandir o contraer menú'"
+        :aria-label="isMobile ? $t('navigation.toggleMenu') : $t('navigation.toggleDesktopMenu')"
         @click="toggleMenu"
       />
 
       <v-app-bar-title class="app-title">
-        Sistema Web Financiero-Contable
+        {{ $t("navigation.appTitle") }}
       </v-app-bar-title>
 
       <v-spacer />
 
-      <v-tooltip text="Cambiar tema (Ctrl+D)">
+      <v-btn-toggle :model-value="locale" density="compact" mandatory variant="text" @update:model-value="changeLanguage">
+        <v-btn value="es" size="small">ES</v-btn>
+        <v-btn value="en" size="small">EN</v-btn>
+      </v-btn-toggle>
+
+      <v-tooltip :text="$t('navigation.toggleTheme')">
         <template #activator="{ props }">
           <v-btn
             v-bind="props"
@@ -243,7 +264,7 @@ onBeforeUnmount(() => {
         :icon="isMobile ? 'mdi-logout' : undefined"
         @click="handleLogout"
       >
-        <span v-if="isDesktop">Cerrar sesión</span>
+        <span v-if="isDesktop">{{ $t("auth.logout") }}</span>
       </v-btn>
     </v-app-bar>
 

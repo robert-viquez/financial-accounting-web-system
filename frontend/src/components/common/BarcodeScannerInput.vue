@@ -1,16 +1,20 @@
 <script setup>
 import { ref } from "vue";
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
 
-defineProps({
+const props = defineProps({
   label: {
     type: String,
-    default: "Escanear código de barras",
+    default: "",
   },
   loading: Boolean,
   autofocus: Boolean,
 });
 
 const emit = defineEmits(["scan"]);
+const { t } = useI18n();
+const effectiveLabel = computed(() => props.label || t("common.scanBarcode"));
 const codigo = ref("");
 
 function procesar() {
@@ -24,7 +28,7 @@ function procesar() {
 <template>
   <v-text-field
     v-model="codigo"
-    :label="label"
+    :label="effectiveLabel"
     prepend-inner-icon="mdi-barcode-scan"
     append-inner-icon="mdi-keyboard-return"
     variant="outlined"

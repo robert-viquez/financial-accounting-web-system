@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { onMounted, ref, watch } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -93,7 +94,7 @@ function obtenerTextoError(value) {
 }
 
 function formatoCRC(valor) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
   }).format(Number(valor || 0));
@@ -101,7 +102,7 @@ function formatoCRC(valor) {
 
 function formatoFecha(fecha) {
   if (!fecha) return "";
-  return new Date(fecha).toLocaleString("es-CR");
+  return new Date(fecha).toLocaleString(currentIntlLocale());
 }
 
 function etiquetaTipoVenta(tipo) {

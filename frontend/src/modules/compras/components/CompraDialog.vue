@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { computed, reactive, ref, watch } from "vue";
 import BaseCrudDialog from "@/components/common/BaseCrudDialog.vue";
 
@@ -94,7 +95,7 @@ function permiteDecimales(productoId) {
 }
 
 function formatoCRC(valor) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
   }).format(Number(valor || 0));

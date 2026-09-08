@@ -1,5 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
+import { useI18n } from "vue-i18n";
+import { useLocale as useVuetifyLocale } from "vuetify";
 
 import PageHeader from "@/components/common/PageHeader.vue";
 import AuditoriaSistema from "@/modules/configuracion/components/AuditoriaSistema.vue";
@@ -31,6 +33,11 @@ import {
   getTiposVenta,
   updateTipoVenta,
 } from "@/modules/ventas/api/ventasService";
+import { applyLocale, clearLocalLocale } from "@/i18n";
+import { resolveLocale } from "@/i18n/locale";
+
+const { locale, t } = useI18n();
+const vuetifyLocale = useVuetifyLocale();
 
 const snackbar = ref(false);
 const snackbarText = ref("");
@@ -52,6 +59,7 @@ const empresa = reactive({
 const impuestos = reactive({
   iva: 13,
   moneda: "CRC",
+  locale_predeterminado: "auto",
 });
 const inventario = reactive({
   lector_codigo_barras: true,
@@ -76,6 +84,7 @@ const perfil = reactive({
   correo: "",
   is_staff: false,
   is_superuser: false,
+  locale: "",
 });
 
 const isAdministrator = computed(() => perfil.is_staff);
@@ -124,6 +133,7 @@ async function cargarConfiguracion() {
     empresa.direccion = config.direccion || "";
     impuestos.iva = Number(config.iva);
     impuestos.moneda = config.moneda;
+    impuestos.locale_predeterminado = config.locale_predeterminado || "auto";
     inventario.lector_codigo_barras = config.lector_codigo_barras;
     inventario.prefijo_productos = config.prefijo_productos;
     logoPreview.value = config.logo || defaultLogo;
@@ -132,19 +142,20 @@ async function cargarConfiguracion() {
     perfil.correo = currentProfile.correo;
     perfil.is_staff = currentProfile.is_staff;
     perfil.is_superuser = currentProfile.is_superuser;
+    perfil.locale = currentProfile.locale || "";
     if (!currentProfile.is_staff) activeSection.value = "perfil";
     unidades.value = unitData.results ?? unitData;
     mediosPago.value = paymentData.results ?? paymentData;
     tiposVenta.value = saleTypeData.results ?? saleTypeData;
   } catch {
-    mensaje("No se pudo cargar la configuración.", "error");
+    mensaje(t("settings.loadError"), "error");
   }
 }
 
 async function guardarConfiguracion() {
   saving.value = true;
   try {
-    const updates = [updatePerfil({ first_name: perfil.nombre, correo: perfil.correo || "" })];
+    const updates = [updatePerfil({ first_name: perfil.nombre, correo: perfil.correo || "", locale: perfil.locale })];
     if (isAdministrator.value) {
       const formData = new FormData();
       Object.entries({ ...empresa, ...impuestos, ...inventario }).forEach(([key, value]) => {
@@ -157,13 +168,27 @@ async function guardarConfiguracion() {
     const savedConfig = results[1];
     if (savedConfig?.logo) logoPreview.value = savedConfig.logo;
     logoFile.value = null;
+    if (perfil.locale) {
+      applyLocale(perfil.locale);
+      locale.value = perfil.locale;
+      vuetifyLocale.current.value = perfil.locale;
+    } else {
+      clearLocalLocale();
+      const inheritedLocale = resolveLocale({
+        defaultLocale: impuestos.locale_predeterminado,
+        browserLocale: navigator.language,
+      });
+      applyLocale(inheritedLocale, { persist: false });
+      locale.value = inheritedLocale;
+      vuetifyLocale.current.value = inheritedLocale;
+    }
     mensaje(
       isAdministrator.value
-        ? "Configuración guardada correctamente."
-        : "Perfil actualizado correctamente."
+        ? t("settings.saved")
+        : t("settings.profileSaved")
     );
   } catch (error) {
-    mensaje(mensajeError(error, "No se pudo guardar la configuración."), "error");
+    mensaje(mensajeError(error, t("settings.saveError")), "error");
   } finally {
     saving.value = false;
   }
@@ -326,23 +351,23 @@ onBeforeUnmount(() => {
 <template>
   <section>
     <PageHeader
-      title="Configuración"
-      subtitle="Parámetros generales, impuestos, usuarios, roles y perfil."
+      :title="$t('settings.title')"
+      :subtitle="$t('settings.subtitle')"
     />
 
     <v-alert v-if="!isAdministrator" class="mb-4" type="info" variant="tonal" density="compact">
-      La configuración global solo puede ser modificada por administradores.
+      {{ $t("settings.adminOnly") }}
     </v-alert>
 
     <v-tabs v-model="activeSection" class="mb-4" show-arrows>
-      <v-tab v-if="isAdministrator" value="general">General</v-tab>
-      <v-tab v-if="isAdministrator" value="empresa">Empresa</v-tab>
-      <v-tab v-if="isAdministrator" value="inventario">Inventario</v-tab>
-      <v-tab v-if="isAdministrator" value="ventas">Ventas</v-tab>
-      <v-tab v-if="isAdministrator" value="usuarios">Usuarios y acceso</v-tab>
-      <v-tab v-if="isAdministrator" value="roles">Roles y permisos</v-tab>
-      <v-tab v-if="isAdministrator" value="auditoria">Auditoría</v-tab>
-      <v-tab value="perfil">Mi perfil</v-tab>
+      <v-tab v-if="isAdministrator" value="general">{{ $t("settings.general") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="empresa">{{ $t("settings.company") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="inventario">{{ $t("settings.inventory") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="ventas">{{ $t("settings.sales") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="usuarios">{{ $t("settings.usersAccess") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="roles">{{ $t("settings.rolesPermissions") }}</v-tab>
+      <v-tab v-if="isAdministrator" value="auditoria">{{ $t("settings.audit") }}</v-tab>
+      <v-tab value="perfil">{{ $t("settings.profile") }}</v-tab>
     </v-tabs>
 
     <v-row>
@@ -365,6 +390,24 @@ onBeforeUnmount(() => {
               </v-btn>
             </template>
           </v-card-item>
+        </v-card>
+        <v-card class="config-card mt-4">
+          <v-card-title>{{ $t("language.default") }}</v-card-title>
+          <v-card-text>
+            <v-select
+              v-model="impuestos.locale_predeterminado"
+              :items="[
+                { title: $t('language.auto'), value: 'auto' },
+                { title: $t('language.spanish'), value: 'es' },
+                { title: $t('language.english'), value: 'en' }
+              ]"
+              :label="$t('language.default')"
+              :hint="$t('settings.defaultLanguageHint')"
+              persistent-hint
+              variant="outlined"
+              density="compact"
+            />
+          </v-card-text>
         </v-card>
       </v-col>
 
@@ -578,6 +621,21 @@ onBeforeUnmount(() => {
               <v-col cols="12" sm="6">
                 <v-text-field v-model="perfil.correo" label="Correo" variant="outlined" density="compact" />
               </v-col>
+              <v-col cols="12">
+                <v-select
+                  v-model="perfil.locale"
+                  :items="[
+                    { title: $t('language.inherit'), value: '' },
+                    { title: $t('language.spanish'), value: 'es' },
+                    { title: $t('language.english'), value: 'en' }
+                  ]"
+                  :label="$t('language.label')"
+                  :hint="$t('settings.profileLanguageHint')"
+                  persistent-hint
+                  variant="outlined"
+                  density="compact"
+                />
+              </v-col>
             </v-row>
           </v-card-text>
         </v-card>
@@ -618,9 +676,9 @@ onBeforeUnmount(() => {
       </v-col>
     </v-row>
 
-    <div v-if="['empresa', 'inventario', 'perfil'].includes(activeSection)" class="d-flex justify-end mt-4">
+    <div v-if="['general', 'empresa', 'inventario', 'perfil'].includes(activeSection)" class="d-flex justify-end mt-4">
       <v-btn color="primary" prepend-icon="mdi-content-save" :loading="saving" @click="guardarConfiguracion">
-        {{ isAdministrator ? "Guardar configuración" : "Guardar perfil" }}
+        {{ isAdministrator ? $t("settings.saveSettings") : $t("settings.saveProfile") }}
       </v-btn>
     </div>
 

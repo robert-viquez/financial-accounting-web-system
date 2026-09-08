@@ -1,11 +1,14 @@
 <script setup>
 import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { login } from "../authService";
 import { getIdentidadEmpresa } from "@/modules/configuracion/api/configuracionService";
 import defaultLogo from "@/assets/byteforge-logo.svg";
+import { applyLocale } from "@/i18n";
 
 const router = useRouter();
+const { locale, t } = useI18n();
 
 const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
 const username = ref(demoMode ? import.meta.env.VITE_DEMO_USERNAME || "" : "");
@@ -35,26 +38,36 @@ async function handleLogin() {
     router.push("/dashboard");
   } catch (err) {
     console.error(err.response?.data || err.message);
-    error.value = err.response?.data?.detail || "No se pudo iniciar sesión.";
+    error.value = err.response?.data?.detail || t("auth.loginError");
   } finally {
     loading.value = false;
   }
+}
+
+function changeLanguage(value) {
+  applyLocale(value);
+  locale.value = value;
 }
 </script>
 
 <template>
   <main class="login-page">
     <section class="login-card">
-      <img class="login-logo" :src="logoUrl" :alt="`Logo de ${empresaNombre}`" />
+      <div class="language-selector" role="group" :aria-label="$t('language.label')">
+        <button type="button" :class="{ selected: locale === 'es' }" @click="changeLanguage('es')">Español</button>
+        <span aria-hidden="true">|</span>
+        <button type="button" :class="{ selected: locale === 'en' }" @click="changeLanguage('en')">English</button>
+      </div>
+      <img class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
       <h1>{{ empresaNombre }}</h1>
-      <p class="login-subtitle">Sistema financiero-contable</p>
-      <p v-if="demoMode" class="demo-notice">Credenciales de demostración precargadas.</p>
+      <p class="login-subtitle">{{ $t("auth.systemName") }}</p>
+      <p v-if="demoMode" class="demo-notice">{{ $t("auth.demoCredentials") }}</p>
 
       <form @submit.prevent="handleLogin">
-        <label for="username">Usuario</label>
+        <label for="username">{{ $t("auth.username") }}</label>
         <input id="username" v-model="username" type="text" autocomplete="username" required />
 
-        <label for="password">Contraseña</label>
+        <label for="password">{{ $t("auth.password") }}</label>
         <div class="password-field">
           <input
             id="password"
@@ -66,7 +79,7 @@ async function handleLogin() {
           <button
             class="password-toggle"
             type="button"
-            :aria-label="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+            :aria-label="showPassword ? $t('auth.hidePassword') : $t('auth.showPassword')"
             :aria-pressed="showPassword"
             @click="showPassword = !showPassword"
           >
@@ -84,7 +97,7 @@ async function handleLogin() {
         </div>
 
         <button type="submit" :disabled="loading">
-          {{ loading ? "Ingresando..." : "Iniciar sesión" }}
+          {{ loading ? $t("auth.loggingIn") : $t("auth.login") }}
         </button>
 
         <p v-if="error" class="error">{{ error }}</p>
@@ -110,6 +123,28 @@ async function handleLogin() {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
   padding: 24px;
   width: min(100%, 420px);
+}
+
+.language-selector {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.language-selector button {
+  background: transparent;
+  border: 0;
+  color: #334155;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.language-selector button.selected {
+  color: #1d4ed8;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .login-logo {

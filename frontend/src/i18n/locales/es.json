@@ -1,0 +1,50 @@
+{
+  "common": {
+    "save": "Guardar", "cancel": "Cancelar", "delete": "Eliminar", "edit": "Editar",
+    "add": "Agregar", "new": "Nuevo", "search": "Buscar", "clear": "Limpiar",
+    "close": "Cerrar", "confirm": "Confirmar", "actions": "Acciones", "status": "Estado",
+    "active": "Activo", "inactive": "Inactivo", "yes": "Sí", "no": "No",
+    "loading": "Cargando...", "noData": "No hay datos disponibles", "all": "Todos",
+    "from": "Desde", "to": "Hasta", "date": "Fecha", "name": "Nombre", "code": "Código",
+    "description": "Descripción", "quantity": "Cantidad", "price": "Precio", "total": "Total",
+    "email": "Correo", "phone": "Teléfono", "address": "Dirección", "identifier": "Identificación",
+    "success": "Operación completada correctamente.", "error": "No se pudo completar la operación.",
+    "required": "Este campo es obligatorio.", "select": "Seleccione una opción",
+    "form": "Formulario", "confirmAction": "Confirmar acción", "continueQuestion": "¿Desea continuar?",
+    "scanBarcode": "Escanear código de barras"
+  },
+  "language": {
+    "label": "Idioma", "spanish": "Español", "english": "English",
+    "inherit": "Usar predeterminado", "auto": "Automático según navegador",
+    "default": "Idioma predeterminado"
+  },
+  "auth": {
+    "systemName": "Sistema financiero-contable", "username": "Usuario", "password": "Contraseña",
+    "login": "Iniciar sesión", "loggingIn": "Ingresando...", "logout": "Cerrar sesión",
+    "showPassword": "Mostrar contraseña", "hidePassword": "Ocultar contraseña",
+    "loginError": "No se pudo iniciar sesión.", "demoCredentials": "Credenciales de demostración precargadas."
+  },
+  "navigation": {
+    "mainMenu": "Menú principal", "home": "Inicio", "page": "Página", "operations": "Operaciones",
+    "sales": "Ventas", "purchases": "Compras", "customers": "Clientes", "suppliers": "Proveedores",
+    "inventory": "Inventario", "products": "Productos", "movements": "Movimientos",
+    "categories": "Categorías", "accounting": "Contabilidad", "accountingSummary": "Resumen contable",
+    "receivables": "Cuentas por cobrar", "payables": "Cuentas por pagar", "reports": "Reportes",
+    "settings": "Configuración", "toggleMenu": "Abrir o cerrar menú", "toggleDesktopMenu": "Expandir o contraer menú",
+    "toggleTheme": "Cambiar tema (Ctrl+D)", "appTitle": "Sistema Web Financiero-Contable", "companyLogo": "Logo de {name}"
+  },
+  "settings": {
+    "title": "Configuración", "subtitle": "Parámetros generales, impuestos, usuarios, roles y perfil.",
+    "adminOnly": "La configuración global solo puede ser modificada por administradores.",
+    "general": "General", "company": "Empresa", "inventory": "Inventario", "sales": "Ventas",
+    "usersAccess": "Usuarios y acceso", "rolesPermissions": "Roles y permisos", "audit": "Auditoría",
+    "profile": "Mi perfil", "saved": "Configuración guardada correctamente.",
+    "profileSaved": "Perfil actualizado correctamente.", "loadError": "No se pudo cargar la configuración.",
+    "saveError": "No se pudo guardar la configuración.", "defaultLanguageHint": "Se usa cuando el usuario no ha elegido un idioma.",
+    "profileLanguageHint": "Esta preferencia tiene prioridad sobre el idioma predeterminado.",
+    "saveSettings": "Guardar configuración", "saveProfile": "Guardar perfil"
+  },
+  "roles": {
+    "Gerencia": "Gerencia", "Ventas": "Ventas", "Inventario": "Inventario", "Contabilidad": "Contabilidad", "Operaciones": "Operaciones"
+  }
+}

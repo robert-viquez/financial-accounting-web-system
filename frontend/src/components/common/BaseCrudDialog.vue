@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from "vue";
 import { useDisplay } from "vuetify";
+import { useI18n } from "vue-i18n";
 
 const props = defineProps({
   modelValue: {
@@ -9,7 +10,7 @@ const props = defineProps({
   },
   title: {
     type: String,
-    default: "Formulario",
+    default: "",
   },
   maxWidth: {
     type: String,
@@ -23,6 +24,8 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue", "save"]);
 const display = useDisplay();
+const { t } = useI18n();
+const effectiveTitle = computed(() => props.title || t("common.form"));
 const isPhone = computed(() => display.xs.value);
 
 const dialogMaxWidth = computed(() =>
@@ -48,7 +51,7 @@ function save() {
   >
     <v-card class="crud-dialog-card">
       <v-card-title class="d-flex align-center">
-        <span class="dialog-title">{{ title }}</span>
+        <span class="dialog-title">{{ effectiveTitle }}</span>
 
         <v-spacer />
 
@@ -72,11 +75,11 @@ function save() {
         <v-spacer class="d-none d-sm-flex" />
 
         <v-btn variant="text" @click="close">
-          Cancelar
+          {{ $t("common.cancel") }}
         </v-btn>
 
         <v-btn color="primary" :loading="loading" @click="save">
-          Guardar
+          {{ $t("common.save") }}
         </v-btn>
       </v-card-actions>
     </v-card>

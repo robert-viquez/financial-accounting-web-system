@@ -2,13 +2,14 @@ import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 
 import { createVuetify } from "vuetify";
-import { es } from "vuetify/locale";
+import { en, es } from "vuetify/locale";
+import { i18n } from "@/i18n";
 
 const vuetify = createVuetify({
   locale: {
-    locale: "es",
+    locale: i18n.global.locale.value,
     fallback: "es",
-    messages: { es },
+    messages: { es, en },
   },
   theme: {
     defaultTheme: "light",

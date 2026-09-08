@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { computed, onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
@@ -64,7 +65,7 @@ function numero(value) {
 }
 
 function formatoCRC(value) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
   }).format(numero(value));
@@ -72,7 +73,7 @@ function formatoCRC(value) {
 
 function formatoFecha(value) {
   if (!value) return "";
-  return new Date(value).toLocaleDateString("es-CR");
+  return new Date(value).toLocaleDateString(currentIntlLocale());
 }
 
 function filtrarPorFecha(items, key) {

@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { onMounted, reactive, ref } from 'vue'
 import {
   getAuditoria,
@@ -79,7 +80,7 @@ onMounted(async () => {
       </thead>
       <tbody>
         <tr v-for="item in auditoria" :key="item.id">
-          <td>{{ new Date(item.fecha).toLocaleString('es-CR') }}</td>
+          <td>{{ new Date(item.fecha).toLocaleString(currentIntlLocale()) }}</td>
           <td>{{ item.usuario_nombre }}</td>
           <td>{{ item.metodo }}</td>
           <td>{{ item.ruta }}</td>

@@ -1,38 +1,44 @@
 <script setup>
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
 const model = defineModel();
 
-defineProps({
+const props = defineProps({
   title: {
     type: String,
-    default: "Confirmar acción",
+    default: "",
   },
   message: {
     type: String,
-    default: "¿Desea continuar?",
+    default: "",
   },
 });
 
 const emit = defineEmits(["confirm"]);
+const { t } = useI18n();
+const effectiveTitle = computed(() => props.title || t("common.confirmAction"));
+const effectiveMessage = computed(() => props.message || t("common.continueQuestion"));
 </script>
 
 <template>
   <v-dialog v-model="model" max-width="420">
     <v-card>
-      <v-card-title>{{ title }}</v-card-title>
+      <v-card-title>{{ effectiveTitle }}</v-card-title>
 
       <v-card-text>
-        {{ message }}
+        {{ effectiveMessage }}
       </v-card-text>
 
       <v-card-actions>
         <v-spacer />
 
         <v-btn variant="text" @click="model = false">
-          Cancelar
+          {{ $t("common.cancel") }}
         </v-btn>
 
         <v-btn color="error" @click="emit('confirm')">
-          Confirmar
+          {{ $t("common.confirm") }}
         </v-btn>
       </v-card-actions>
     </v-card>

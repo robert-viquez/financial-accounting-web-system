@@ -1,4 +1,5 @@
 <script setup>
+import { currentIntlLocale } from "@/i18n/format";
 import { computed, onMounted, ref } from "vue";
 
 import { getVentas } from "@/modules/ventas/api/ventasService";
@@ -209,7 +210,7 @@ function numero(value) {
 }
 
 function formatoCRC(value) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     style: "currency",
     currency: "CRC",
     maximumFractionDigits: 0,
@@ -217,14 +218,14 @@ function formatoCRC(value) {
 }
 
 function formatoNumero(value) {
-  return new Intl.NumberFormat("es-CR", {
+  return new Intl.NumberFormat(currentIntlLocale(), {
     maximumFractionDigits: 2,
   }).format(numero(value));
 }
 
 function formatoFecha(value) {
   if (!value) return "";
-  return new Date(value).toLocaleDateString("es-CR");
+  return new Date(value).toLocaleDateString(currentIntlLocale());
 }
 
 function esMismaFecha(value, date) {
@@ -243,7 +244,7 @@ function esMismoMes(value, year, month) {
 }
 
 function nombreMes(year, month) {
-  return new Date(year, month, 1).toLocaleDateString("es-CR", {
+  return new Date(year, month, 1).toLocaleDateString(currentIntlLocale(), {
     month: "short",
   });
 }

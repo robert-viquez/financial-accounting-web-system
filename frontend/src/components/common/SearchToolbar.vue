@@ -1,14 +1,19 @@
 <script setup>
+import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+
 const model = defineModel();
 
-defineProps({
+const props = defineProps({
   label: {
     type: String,
-    default: "Buscar",
+    default: "",
   },
 });
 
 const emit = defineEmits(["search"]);
+const { t } = useI18n();
+const effectiveLabel = computed(() => props.label || t("common.search"));
 </script>
 
 <template>
@@ -17,7 +22,7 @@ const emit = defineEmits(["search"]);
       <v-col cols="12" sm="8" md="5" lg="4">
         <v-text-field
           v-model="model"
-          :label="label"
+          :label="effectiveLabel"
           prepend-inner-icon="mdi-magnify"
           density="compact"
           variant="outlined"
@@ -30,7 +35,7 @@ const emit = defineEmits(["search"]);
 
       <v-col cols="12" sm="auto">
         <v-btn class="search-button" variant="tonal" @click="emit('search')">
-          Buscar
+          {{ $t("common.search") }}
         </v-btn>
       </v-col>
     </v-row>
