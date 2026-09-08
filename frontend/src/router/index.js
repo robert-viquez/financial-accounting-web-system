@@ -2,6 +2,9 @@ import { createRouter, createWebHistory } from "vue-router";
 import { isAuthenticated } from "@/modules/auth/authService";
 
 import LoginView from "@/modules/auth/pages/LoginView.vue";
+import SetupView from "@/modules/auth/pages/SetupView.vue";
+import { getSetupRequired } from "@/modules/auth/setupService";
+import { resolveSetupNavigation } from "@/modules/auth/setupFlow";
 import MainLayout from "@/layouts/MainLayout.vue";
 import DashboardView from "@/modules/dashboard/pages/DashboardView.vue";
 
@@ -13,6 +16,10 @@ const routes = [
   {
     path: "/login",
     component: LoginView,
+  },
+  {
+    path: "/setup",
+    component: SetupView,
   },
   {
     path: "/",
@@ -101,7 +108,18 @@ const router = createRouter({
   routes,
 });
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
+  try {
+    const setupRedirect = resolveSetupNavigation({
+      setupRequired: await getSetupRequired(),
+      path: to.path,
+      authenticated: isAuthenticated(),
+    });
+    if (setupRedirect) return setupRedirect;
+  } catch {
+    // Preserve the existing login flow when setup status cannot be reached.
+  }
+
   if (to.meta.requiresAuth && !isAuthenticated()) {
     return "/login";
   }

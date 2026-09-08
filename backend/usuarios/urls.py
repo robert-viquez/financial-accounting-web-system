@@ -13,9 +13,13 @@ from .views import (
     PermisosView,
     InformacionSistemaView,
     AuditoriaView,
+    ConfiguracionInicialAdminView,
+    ConfiguracionInicialEstadoView,
 )
 
 urlpatterns = [
+    path("setup/status/", ConfiguracionInicialEstadoView.as_view()),
+    path("setup/admin/", ConfiguracionInicialAdminView.as_view()),
     path("mi-perfil/", MiPerfilView.as_view()),
     path("cambiar-password/", CambiarPasswordView.as_view()),
     path("usuarios/", UsuariosView.as_view()),

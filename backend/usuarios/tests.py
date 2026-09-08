@@ -5,6 +5,61 @@ from django.contrib.auth.models import Group, Permission, User
 from .models import ConfiguracionEmpresa
 
 
+class ConfiguracionInicialTests(APITestCase):
+    endpoint = "/api/setup/admin/"
+
+    def test_base_fresca_requiere_configuracion(self):
+        response = self.client.get("/api/setup/status/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, {"setup_required": True})
+
+    def test_superusuario_activo_completa_configuracion(self):
+        User.objects.create_superuser("existente", password="ClaveSegura123!")
+        response = self.client.get("/api/setup/status/")
+        self.assertEqual(response.data, {"setup_required": False})
+
+    def test_usuario_normal_no_desactiva_configuracion_inicial(self):
+        User.objects.create_user("normal", password="ClaveSegura123!")
+        response = self.client.get("/api/setup/status/")
+        self.assertEqual(response.data, {"setup_required": True})
+
+    def test_crea_primer_administrador_y_bloquea_el_segundo(self):
+        payload = {
+            "username": "admin-inicial",
+            "email": "admin@example.com",
+            "password": "ClaveSegura123!",
+            "password_confirm": "ClaveSegura123!",
+        }
+        created = self.client.post(self.endpoint, payload, format="json")
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        user = User.objects.get(username="admin-inicial")
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.check_password(payload["password"]))
+
+        rejected = self.client.post(
+            self.endpoint,
+            {**payload, "username": "otro-admin", "email": "otro@example.com"},
+            format="json",
+        )
+        self.assertEqual(rejected.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertFalse(User.objects.filter(username="otro-admin").exists())
+
+    def test_rechaza_password_invalido(self):
+        weak = self.client.post(
+            self.endpoint,
+            {
+                "username": "admin",
+                "password": "123",
+                "password_confirm": "123",
+            },
+            format="json",
+        )
+        self.assertEqual(weak.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(User.objects.exists())
+
+
 class AutenticacionTests(APITestCase):
     def test_perfil_valida_y_persiste_locale_sin_escalar_privilegios(self):
         user = User.objects.create_user("locale-user", password="ClaveInicial123!")

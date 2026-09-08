@@ -5,6 +5,10 @@ LOCALES_USUARIO = [("es", "Español"), ("en", "English")]
 LOCALES_APLICACION = [("auto", "Automático"), *LOCALES_USUARIO]
 
 
+class ConfiguracionInicialLock(models.Model):
+    """Singleton row used to serialize first-administrator creation."""
+
+
 class PreferenciaUsuario(models.Model):
     usuario = models.OneToOneField(
         "auth.User", on_delete=models.CASCADE, related_name="preferencias"

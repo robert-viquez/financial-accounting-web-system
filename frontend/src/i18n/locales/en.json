@@ -24,6 +24,11 @@
     "showPassword": "Show password", "hidePassword": "Hide password",
     "loginError": "Unable to sign in.", "demoCredentials": "Demo credentials are prefilled."
   },
+  "setup": {
+    "title": "Initial setup", "subtitle": "Create the first technical administrator account.",
+    "confirmPassword": "Confirm password", "create": "Create administrator", "creating": "Creating...",
+    "passwordMismatch": "Passwords do not match.", "error": "The administrator could not be created."
+  },
   "navigation": {
     "mainMenu": "Main menu", "home": "Home", "page": "Page", "operations": "Operations",
     "sales": "Sales", "purchases": "Purchases", "customers": "Customers", "suppliers": "Suppliers",

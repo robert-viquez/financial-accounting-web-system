@@ -11,6 +11,28 @@ def permisos_negocio():
     )
 
 
+class ConfiguracionInicialAdminSerializer(serializers.Serializer):
+    username = serializers.CharField(max_length=150)
+    email = serializers.EmailField(required=False, allow_blank=True)
+    password = serializers.CharField(write_only=True, trim_whitespace=False)
+    password_confirm = serializers.CharField(write_only=True, trim_whitespace=False)
+
+    def validate_username(self, value):
+        value = value.strip()
+        if User.objects.filter(username=value).exists():
+            raise serializers.ValidationError("Este nombre de usuario ya existe.")
+        return value
+
+    def validate(self, attrs):
+        if attrs["password"] != attrs["password_confirm"]:
+            raise serializers.ValidationError(
+                {"password_confirm": "Las contraseñas no coinciden."}
+            )
+        candidate = User(username=attrs["username"], email=attrs.get("email", ""))
+        validate_password(attrs["password"], candidate)
+        return attrs
+
+
 class ConfiguracionEmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracionEmpresa

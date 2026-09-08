@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.models import Group, Permission, User
-from django.db import connection
+from django.db import connection, transaction
 from django.db.models.deletion import ProtectedError
 from django.utils import timezone
 from rest_framework import generics, permissions
@@ -8,10 +8,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from drf_spectacular.utils import extend_schema
 
-from .models import ConfiguracionEmpresa, RegistroAuditoria
+from .models import ConfiguracionEmpresa, ConfiguracionInicialLock, RegistroAuditoria
 from .filters import RegistroAuditoriaFilter
 from .serializers import (
     CambiarPasswordSerializer,
+    ConfiguracionInicialAdminSerializer,
     ConfiguracionEmpresaSerializer,
     IdentidadEmpresaSerializer,
     PerfilSerializer,
@@ -21,6 +22,42 @@ from .serializers import (
     RolAdminSerializer,
     RegistroAuditoriaSerializer,
 )
+
+
+def configuracion_inicial_requerida():
+    return not User.objects.filter(is_active=True, is_superuser=True).exists()
+
+
+class ConfiguracionInicialEstadoView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return Response({"setup_required": configuracion_inicial_requerida()})
+
+
+class ConfiguracionInicialAdminView(APIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+
+    @extend_schema(request=ConfiguracionInicialAdminSerializer, responses={201: dict})
+    def post(self, request):
+        with transaction.atomic():
+            ConfiguracionInicialLock.objects.select_for_update().get(pk=1)
+            if not configuracion_inicial_requerida():
+                return Response(
+                    {"detail": "La configuración inicial ya fue completada."},
+                    status=403,
+                )
+            serializer = ConfiguracionInicialAdminSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            data = serializer.validated_data
+            User.objects.create_superuser(
+                username=data["username"],
+                email=data.get("email", ""),
+                password=data["password"],
+            )
+        return Response({"detail": "Administrador creado correctamente."}, status=201)
 
 
 class MiPerfilView(generics.RetrieveUpdateAPIView):

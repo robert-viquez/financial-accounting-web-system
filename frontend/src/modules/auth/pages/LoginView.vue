@@ -4,7 +4,6 @@ import { useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import { login } from "../authService";
 import { getIdentidadEmpresa } from "@/modules/configuracion/api/configuracionService";
-import defaultLogo from "@/assets/byteforge-logo.svg";
 import { applyLocale } from "@/i18n";
 
 const router = useRouter();
@@ -16,13 +15,13 @@ const password = ref(demoMode ? import.meta.env.VITE_DEMO_PASSWORD || "" : "");
 const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
-const logoUrl = ref(defaultLogo);
-const empresaNombre = ref("ByteForge Technologies");
+const logoUrl = ref("");
+const empresaNombre = ref("FAWS");
 
 onMounted(async () => {
   try {
     const configuracion = await getIdentidadEmpresa();
-    logoUrl.value = configuracion.logo || defaultLogo;
+    logoUrl.value = configuracion.logo || "";
     empresaNombre.value = configuracion.nombre || empresaNombre.value;
   } catch {
     // La identidad predeterminada mantiene el login disponible sin conexión al API.
@@ -58,7 +57,7 @@ function changeLanguage(value) {
         <span aria-hidden="true">|</span>
         <button type="button" :class="{ selected: locale === 'en' }" @click="changeLanguage('en')">English</button>
       </div>
-      <img class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
+      <img v-if="logoUrl" class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
       <h1>{{ empresaNombre }}</h1>
       <p class="login-subtitle">{{ $t("auth.systemName") }}</p>
       <p v-if="demoMode" class="demo-notice">{{ $t("auth.demoCredentials") }}</p>
