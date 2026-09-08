@@ -24,12 +24,14 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from config.views import health
 
 admin.site.site_header = "Administración del ERP"
 admin.site.site_title = "Sitio administrativo"
 admin.site.index_title = "Sitio administrativo"
 
 urlpatterns = [
+    path("api/health/", health, name="health"),
     path('admin/', admin.site.urls),
     # Auth API
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
