@@ -1,117 +1,186 @@
-# Financial Accounting Web System
+# Financial Accounting Web System (FAWS)
+
+**Django · Vue · MySQL · Docker Compose · GitHub Actions · Cloudflare Tunnel**
 
 [![CI](https://github.com/robert-viquez/financial-accounting-web-system/actions/workflows/ci.yml/badge.svg)](https://github.com/robert-viquez/financial-accounting-web-system/actions/workflows/ci.yml)
 
-A full-stack financial and accounting management system built for Queso Los Santos S.A. as a university graduation project. It demonstrates transactional business workflows, REST API design, automated testing, reproducible demo data, containerization, and continuous integration.
+A full-stack financial and accounting system that connects sales, purchases, inventory, receivables, payables, and double-entry accounting. FAWS is also a deployed systems project: its public portfolio demo runs as a containerized application behind Cloudflare Tunnel, with health checks, persistent storage, continuous integration, and deterministic data resets.
 
-> **Status:** Active development. The project is suitable for local demonstration and portfolio review; it has not been presented as a production deployment.
+**[Open Live Demo](https://faws.robertviquez.com)** · **[Documentation](docs/)** · **[Architecture](#deployment-architecture)**
 
-## Problem and use case
+## Live Demo
 
-Small businesses often manage sales, purchases, stock, receivables, payables, and accounting records across disconnected tools. This application brings those workflows together so operational transactions produce consistent inventory and double-entry accounting effects.
+**[https://faws.robertviquez.com](https://faws.robertviquez.com)**
 
-## Features
+The public environment contains an entirely fictional **ByteForge Technologies** dataset. Demo credentials are prefilled on the login screen and authenticate through the normal application flow. The `demo` user is a non-staff, non-superuser business account; Django Admin is separately protected and is not part of the public demo.
 
-- JWT authentication, roles, permissions, and audit records
-- Customer and supplier management
-- Product, category, barcode, and inventory movement management
-- Cash and credit sales with stock validation and reversal
-- Purchase registration with inventory updates and reversal
-- Accounts receivable/payable and payment application
-- Double-entry journal entries, accounting periods, and financial reports
-- XLSX and PDF report exports
-- OpenAPI schema and interactive Swagger documentation
-- Deterministic, validated demo-data command
+Demo business data is restored automatically every six hours. Do not enter personal, confidential, or production information.
 
-## Technology stack
+## What FAWS does
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | Vue 3, Vite, Vuetify, Pinia, Axios |
-| Backend | Python, Django, Django REST Framework |
-| Authentication/API | Simple JWT, drf-spectacular, django-filter |
-| Database | MySQL 8.4; SQLite is used by default for isolated tests |
-| Delivery | Docker Compose, Nginx, Gunicorn, GitHub Actions |
+- Manages customers, suppliers, products, categories, barcodes, and stock movements.
+- Records cash and credit sales and purchases with inventory validation and reversal flows.
+- Tracks accounts receivable, accounts payable, and their payments.
+- Produces double-entry journal records, accounting periods, and financial reports.
+- Exports selected operational and accounting reports to PDF and XLSX.
+- Provides JWT authentication, native Django role-based access control, and an audit trail.
+- Exposes an OpenAPI schema, Swagger UI, and a database-aware health endpoint.
 
-## Architecture
+## Product Tour
 
-```mermaid
-flowchart LR
-    U[Browser] -->|HTTP :5173| N[Nginx / Vue SPA]
-    N -->|/api proxy| D[Django REST API / Gunicorn]
-    D --> M[(MySQL)]
-    D --> F[(Media volume)]
-    D --> A[Domain services: sales, purchases, inventory, finance, accounting]
-```
+### Demo access and operational dashboard
 
-The Vue single-page application consumes a JWT-protected REST API. Django domain services coordinate database transactions so sales and purchases update inventory, financial accounts, and accounting entries consistently. In Docker, Nginx serves the compiled frontend and proxies `/api/` to Gunicorn.
+<table>
+  <tr>
+    <td width="38%"><img src="docs/screenshots/login.png" alt="FAWS demo login with prefilled username and password"></td>
+    <td width="62%"><img src="docs/screenshots/dashboard.png" alt="FAWS operational dashboard"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Public demo access uses prefilled credentials without bypassing authentication.</sub></td>
+    <td align="center"><sub>Operational indicators combine sales, purchases, inventory, customers, and supplier activity.</sub></td>
+  </tr>
+</table>
 
-## Repository structure
+### Inventory and sales
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/products.png" alt="FAWS product and inventory catalog"></td>
+    <td width="50%"><img src="docs/screenshots/sales.png" alt="FAWS sales ledger"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Searchable product catalog with categories, current stock, pricing, and status.</sub></td>
+    <td align="center"><sub>Sales ledger with payment method, state, timestamp, customer, and receipt references.</sub></td>
+  </tr>
+</table>
+
+### Reporting and company configuration
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/reports.png" alt="FAWS reports and export interface"></td>
+    <td width="50%"><img src="docs/screenshots/configs_company.png" alt="FAWS company configuration"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Date-filtered operational and accounting reports with PDF and XLSX export.</sub></td>
+    <td align="center"><sub>Configurable company identity, branding, tax rate, and currency.</sub></td>
+  </tr>
+</table>
+
+### Administration, RBAC, and auditability
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/configs_roles_permissions.png" alt="FAWS roles and permissions management"></td>
+    <td width="50%"><img src="docs/screenshots/configs_audit.png" alt="FAWS audit trail and system information"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Business roles map native Django permissions to groups and users.</sub></td>
+    <td align="center"><sub>Filtered request audit records and deployment-aware system status.</sub></td>
+  </tr>
+</table>
+
+## Administration and security model
+
+FAWS builds its business authorization model on Django primitives:
 
 ```text
-.
-├── backend/                 # Django project and domain applications
-│   ├── config/              # Settings, URL routing, health endpoint
-│   ├── usuarios/            # Authentication, roles, configuration, audit
-│   ├── terceros/            # Customers and suppliers
-│   ├── inventario/          # Products and stock movements
-│   ├── ventas/              # Sales
-│   ├── compras/             # Purchases
-│   ├── finanzas/            # Receivables, payables, and payments
-│   └── contabilidad/        # Journal entries and reports
-├── frontend/                # Vue/Vite application and Nginx config
-├── docker/                  # Container entrypoint scripts
-├── docs/screenshots/        # Portfolio screenshot checklist/assets
-├── scripts/reset-demo.sh    # Explicit, lock-protected demo reset
-├── .github/workflows/       # Continuous integration
-├── compose.yml              # Local application stack
-└── requirements.txt         # Python dependencies
+User → Django Group → Django Permission
 ```
 
-## Quick start with Docker
+- Business administrators (`is_staff=True`) manage users, roles, business permissions, configuration, and audit records inside FAWS.
+- Technical superusers are reserved for recovery and framework-level administration.
+- Django Admin is a separate technical console restricted to active superusers.
+- The public `demo` account remains `is_staff=False` and `is_superuser=False` and receives only its assigned business-role permissions.
+- Audit middleware records authenticated API activity for review by business administrators.
+
+Demo credentials are intentionally public and isolated from database, Django superuser, Cloudflare, and infrastructure credentials. Clean installations do not enable demo mode or create any user automatically.
+
+## Deployment architecture
+
+```mermaid
+flowchart TD
+    I[Internet] --> C[Cloudflare edge]
+    C --> T[Cloudflare Tunnel]
+    T --> H[cloudflared<br/>homeserver infrastructure stack]
+    H -->|shared Docker proxy network| N[Nginx<br/>Vue production build]
+    N -->|/api/| D[Django REST API<br/>Gunicorn]
+    D --> M[(MySQL 8.4<br/>persistent volume)]
+    D --> V[(Media and static volumes)]
+```
+
+`cloudflared` is operated by a separate homeserver infrastructure stack; it is not a service in the FAWS Compose project. The tunnel reaches the Nginx frontend origin through a shared Docker proxy network. Nginx serves the compiled Vue application and proxies `/api/` to Gunicorn on the internal application network. MySQL and Django/Gunicorn are not publicly exposed, and the deployment requires no router port forwarding. Tunnel credentials and private network details are not stored in this repository.
+
+For deployment configuration and operational limitations, see the [portfolio demo deployment guide](docs/deployment-demo.md).
+
+## Technical highlights
+
+| Area | Implementation |
+| --- | --- |
+| Application | Vue 3/Vite SPA and Django REST Framework API |
+| Runtime | Nginx frontend, Gunicorn application server, MySQL 8.4 |
+| Containers | Docker Compose, persistent volumes, dependency ordering, service health checks |
+| Access control | Simple JWT plus native Django users, groups, and permissions |
+| Operations | Environment-based configuration and deterministic, lock-protected demo reset |
+| Delivery | GitHub Actions checks and image builds; deployment remains an operator-managed process |
+| Public access | Cloudflare Tunnel from a separately managed infrastructure stack |
+
+## Continuous integration
+
+The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pull requests and pushes to `main`:
+
+- Django system checks and the backend test suite.
+- Frontend Oxlint/ESLint checks and a Vite production build.
+- Independent backend and frontend Docker image builds.
+
+CI validates the application and container builds. Continuous deployment is not implemented in this repository.
+
+## Deterministic demo reset
+
+[`scripts/reset-demo.sh`](scripts/reset-demo.sh) restores the portfolio environment every six hours on the demo server. It:
+
+- verifies that the database, backend, and frontend services are running;
+- applies Django migrations before resetting data;
+- rebuilds a deterministic, interconnected fictional dataset;
+- restores the public `demo` user and business demo state;
+- preserves technical superusers;
+- verifies application health after the reset; and
+- uses a lock to prevent overlapping reset jobs.
+
+The reset is explicitly guarded by `ALLOW_DEMO_SEED=true` and is never enabled for a normal installation.
+
+## Clean installation
+
+A default Docker installation is intentionally separate from the public portfolio demo:
+
+- no demo data or demo company identity is loaded;
+- demo login prefill and demo seeding are disabled;
+- no superuser—or any other user—is created automatically;
+- application secrets and environment-specific configuration come from `.env`;
+- MySQL and uploaded media persist in named Docker volumes.
 
 Requirements: Docker Engine/Desktop with Docker Compose.
 
 ```bash
 cp .env.example .env
-# Replace every `replace-with-...` value in .env with local-only values.
+# Replace every placeholder with local-only values.
 docker compose up --build
 ```
 
-Open `http://localhost:5173`. The backend container waits for MySQL, applies migrations, collects static assets, and then starts Gunicorn. MySQL and uploaded media use named volumes.
-
-Useful commands:
+Open `http://localhost:5173`, then create a technical administrator only if needed:
 
 ```bash
-docker compose logs -f
 docker compose exec backend python manage.py createsuperuser
-docker compose down
 ```
 
-### Load reproducible demo data
+See [.env.example](.env.example) for available configuration and [docs/deployment-demo.md](docs/deployment-demo.md) for the explicitly enabled demo setup.
 
-The reset is deliberately guarded by explicit authorization. Use the fictional technology-retail dataset and choose a temporary password:
+## Development and validation
 
-```bash
-docker compose exec \
-  -e ALLOW_DEMO_SEED=true \
-  -e DEMO_PASSWORD='choose-a-temporary-local-password' \
-  backend python manage.py seed_demo --reset --seed 20260828
-```
-
-The command uses normal application flows and validates totals, balances, inventory relationships, and double-entry accounting. Never use it against a database containing data you need.
-
-### Linux homeserver portfolio demo
-
-FAWS can run as a resettable Docker Compose demo behind a separately managed Cloudflare Tunnel. Bind Nginx to `127.0.0.1:5173`, seed the fictional ByteForge Technologies records explicitly, and schedule the lock-protected reset script on the host. See [the demo deployment guide](docs/deployment-demo.md) for configuration, proxy details, commands, and limitations. No public URL is asserted by this repository.
-
-## Local development without Docker
-
-Requirements: Python 3.13, Node.js 24 (or a compatible version from `frontend/package.json`), npm, and MySQL.
+Requirements: Python 3.13, Node.js 24 (or a compatible version declared in `frontend/package.json`), npm, and MySQL.
 
 ```bash
 cp .env.example .env
-# Set local MySQL credentials and replace the sample secrets in .env.
 python3 -m venv backend/.venv
 source backend/.venv/bin/activate
 pip install -r requirements.txt
@@ -127,61 +196,34 @@ npm ci
 npm run dev
 ```
 
-The frontend defaults to `http://127.0.0.1:8000/api/`; override `VITE_API_URL` in `.env` when needed. `start.sh` remains available for the original macOS/Homebrew workflow after dependencies are installed.
-
-## Testing and quality checks
-
-Backend tests use a disposable SQLite test database by default and do not touch the configured MySQL database:
+Run the same core checks used by CI:
 
 ```bash
-backend/.venv/bin/python backend/manage.py test
-```
-
-To explicitly exercise MySQL test behavior, set `DJANGO_USE_SQLITE_TESTS=false` and provide a dedicated database user with permission to create a test database. Do not point tests at valuable data.
-
-Frontend checks:
-
-```bash
+DJANGO_DEBUG=true DJANGO_USE_SQLITE_TESTS=true python backend/manage.py check
+DJANGO_DEBUG=true DJANGO_USE_SQLITE_TESTS=true python backend/manage.py test
 cd frontend
-npm ci
 npm run lint:check
 npm run build
 ```
 
-CI runs the backend configuration check and test suite, frontend lint/build, and independent backend/frontend image builds on pull requests and pushes to `main`.
+## Repository map
 
-## API documentation and health
+```text
+.
+├── backend/              # Django project and business modules
+├── frontend/             # Vue/Vite SPA and production Nginx config
+├── docker/               # Container entrypoint
+├── docs/                 # Deployment notes and product screenshots
+├── scripts/              # Demo reset tooling
+├── .github/workflows/    # Continuous integration
+└── compose.yml           # FAWS application stack
+```
 
-With the backend running:
+With the application running, Swagger UI is available at `/api/docs/`, the OpenAPI schema at `/api/schema/`, and the database-aware health check at `/api/health/`.
 
-- Swagger UI: `http://localhost:8000/api/docs/` locally, or `http://localhost:5173/api/docs/` through Docker
-- OpenAPI schema: `/api/schema/`
-- Database-aware health check: `/api/health/`
+## Project context
 
-Most application endpoints require a JWT obtained from `POST /api/token/`; refresh tokens at `POST /api/token/refresh/`.
-
-## Screenshots
-
-Screenshots are intentionally not fabricated. Add sanitized images to `docs/screenshots/` and then embed them here. The exact capture list and safety guidance are in [docs/screenshots/README.md](docs/screenshots/README.md).
-
-Recommended captures: dashboard, inventory, sales workflow, balanced accounting entry, and reports/export view.
-
-## Configuration and security
-
-- `.env` is ignored; commit only `.env.example` and never commit real credentials, keys, customer data, or database exports.
-- Replace all sample values before starting the application. Docker Compose refuses to start when required variables are absent.
-- `DJANGO_DEBUG=true`, local CORS origins, and HTTP are development settings only.
-- Production requires `DJANGO_DEBUG=false`, a strong `DJANGO_SECRET_KEY`, explicit allowed hosts/origins, TLS at a trusted proxy, backup/restore procedures, and reviewed secret management.
-- The application fails fast if the Django secret is missing outside debug mode.
-- Demo reset requires `ALLOW_DEMO_SEED=true`; the demo username/password are supplied only through the environment and work with `DJANGO_DEBUG=false`.
-
-## Roadmap
-
-- Add sanitized portfolio screenshots and a short demonstration video
-- Pin and automate dependency/security update review
-- Add browser-level tests for the highest-value user journeys
-- Define production deployment, observability, backup, and recovery procedures
-- Complete and integrate Costa Rican electronic invoicing workflows
+FAWS began as a university graduation project for a small-business accounting use case and continues as a portfolio project focused on full-stack engineering, systems administration, containerization, and cloud connectivity. ByteForge Technologies is only the fictional public-demo dataset; clean installations have no preset company identity.
 
 ## Author
 

@@ -73,10 +73,10 @@ chmod +x scripts/reset-demo.sh
 ./scripts/reset-demo.sh
 ```
 
-Install this host cron entry with the repository's actual absolute path:
+The public portfolio server runs this reset every six hours. An equivalent host cron entry is:
 
 ```cron
-0 */12 * * * /absolute/path/to/financial-accounting-web-system/scripts/reset-demo.sh >> /var/log/faws-demo-reset.log 2>&1
+0 */6 * * * /absolute/path/to/financial-accounting-web-system/scripts/reset-demo.sh >> /var/log/faws-demo-reset.log 2>&1
 ```
 
 The cron user needs permission to run Docker and write the selected log. Test the script manually as that user first. The committed script never prints the demo password.
