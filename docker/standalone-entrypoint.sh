@@ -21,7 +21,7 @@ if [ "${DATABASE_ENGINE:-sqlite}" = "sqlite" ]; then
     export SQLITE_PATH="${SQLITE_PATH:-$DATA_DIR/faws.sqlite3}"
 fi
 
-runuser -u appuser -- python manage.py migrate --noinput
+gosu appuser python manage.py migrate --noinput
 
 nginx
 

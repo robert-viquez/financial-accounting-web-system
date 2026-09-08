@@ -22,7 +22,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y default-libmysqlclient-dev gcc nginx pkg-config \
+    && apt-get install --no-install-recommends -y default-libmysqlclient-dev gcc gosu nginx pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /tmp/requirements.txt
