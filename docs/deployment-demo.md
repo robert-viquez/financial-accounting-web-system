@@ -1,16 +1,16 @@
 # Portfolio demo deployment
 
-This is a small, resettable portfolio-demo topology, not a production deployment blueprint. It keeps MySQL and Gunicorn on the internal Compose network and publishes only Nginx on the host loopback interface for an externally managed Cloudflare Tunnel.
+This is the earth-2 portfolio-demo topology, not a generic production blueprint. The portable services remain on their default Compose network, while `compose.homeserver.yml` additionally connects only the frontend to the pre-existing `homeserver-proxy` network.
 
 ```text
-Browser → Cloudflare → Cloudflare Tunnel → 127.0.0.1:5173
-                                             ↓
-                                      Nginx / Vue SPA
-                                             ↓ internal Docker network
-                                         Gunicorn → MySQL
+Browser → Cloudflare → centrally managed cloudflared
+                              ↓ homeserver-proxy
+                         Nginx / Vue SPA
+                              ↓ default FAWS network
+                          Gunicorn → MySQL
 ```
 
-The repository contains no tunnel credentials. In Cloudflare, configure the public hostname you control (for example `faws.example.net`) with the HTTP origin `http://127.0.0.1:5173`. DNS is normally created when that public hostname is attached to the tunnel.
+The repository contains no tunnel credentials or `cloudflared` service. The tunnel remains managed in the host's central Cloudflare stack and reaches the frontend through `homeserver-proxy`.
 
 ## Configure and start
 
@@ -47,12 +47,11 @@ Demo login prefill is enabled only when `VITE_DEMO_MODE` is exactly `true`. With
 
 `DJANGO_TRUST_X_FORWARDED_PROTO=true` makes Django trust the sanitized `X-Forwarded-Proto: https` passed through Nginx. Nginx accepts only the exact incoming value `https`; otherwise it uses its own scheme. Loopback binding prevents untrusted LAN clients from reaching that proxy directly. HTTPS redirection is left off because Cloudflare already redirects/terminates HTTPS and the container health check uses HTTP. Enable HSTS only after validating HTTPS for the chosen hostname.
 
-Start and verify:
+The external `homeserver-proxy` network must already exist on earth-2. Start and verify the demo with both files:
 
 ```bash
-docker compose build
-docker compose up -d
-docker compose ps
+docker compose -f compose.yml -f compose.homeserver.yml up -d --build
+docker compose -f compose.yml -f compose.homeserver.yml ps
 curl --fail http://127.0.0.1:5173/api/health/
 ```
 
@@ -61,7 +60,8 @@ curl --fail http://127.0.0.1:5173/api/health/
 Seeding is explicit and never runs for a clean installation:
 
 ```bash
-docker compose exec backend python manage.py seed_demo --reset --seed 20260828
+docker compose -f compose.yml -f compose.homeserver.yml exec backend \
+  python manage.py seed_demo --reset --seed 20260828
 ```
 
 This creates a deterministic, interconnected, entirely fictional ByteForge Technologies dataset and a normal application user from `DEMO_USERNAME` and `DEMO_PASSWORD`. The user belongs to the existing `Operaciones` application group but is neither Django staff nor a superuser (`is_staff=False`, `is_superuser=False`).
@@ -85,9 +85,8 @@ The cron user needs permission to run Docker and write the selected log. Test th
 
 ```bash
 git pull
-docker compose build
-docker compose up -d
-docker compose ps
+docker compose -f compose.yml -f compose.homeserver.yml up -d --build
+docker compose -f compose.yml -f compose.homeserver.yml ps
 curl --fail http://127.0.0.1:5173/api/health/
 ./scripts/reset-demo.sh
 ```
@@ -96,12 +95,14 @@ Back up the MySQL named volume before an update if its current state matters. Th
 
 ## Clean installations and troubleshooting
 
-For a clean installation, keep `VITE_DEMO_MODE=false` and `ALLOW_DEMO_SEED=false`, leave all frontend and backend demo credential values blank, and never run `seed_demo`. Migrations alone produce an empty application ready for configuration, while the login form remains unchanged with empty fields and no demo notice.
+For a clean installation, use only `compose.yml`, keep `VITE_DEMO_MODE=false` and `ALLOW_DEMO_SEED=false`, leave all demo credential values blank, and never run `seed_demo`. Migrations produce no demo user, company identity, or demo business records. The browser displays the one-time administrator setup screen while no active superuser exists.
+
+After setup, anonymous calls to create another initial administrator return `403`, and existing installations go directly to the normal login flow. If every active superuser is deleted or deactivated outside FAWS, setup becomes available again by design so the installation can recover; protect database and server access accordingly. Django Admin remains restricted to active technical superusers.
 
 - If Compose rejects configuration, confirm all required database and secret values exist in `.env`.
 - If Django reports `DisallowedHost`, add the exact public hostname to `DJANGO_ALLOWED_HOSTS`.
 - If browser requests fail, use the exact HTTPS origin (scheme and hostname, without a path) in CORS and CSRF settings.
-- If health fails, inspect `docker compose ps` and `docker compose logs backend frontend db`.
+- If health fails, inspect `docker compose -f compose.yml -f compose.homeserver.yml ps` and the corresponding `logs backend frontend db` output.
 - If reset reports another run, inspect the process before removing the lock file; the lock is released automatically when the process exits.
 - Keep `.env`, database exports, customer data, and Cloudflare tunnel tokens outside version control.
 

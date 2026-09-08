@@ -134,7 +134,7 @@ The [GitHub Actions workflow](.github/workflows/ci.yml) runs on pull requests an
 - Frontend Oxlint/ESLint checks and a Vite production build.
 - Independent backend and frontend Docker image builds.
 
-CI validates the application and container builds. Continuous deployment is not implemented in this repository.
+CI also runs a clean-install Compose smoke test. Successful `main` builds can deploy the separately configured portfolio demo through the self-hosted earth-2 runner.
 
 
 ## Installation
@@ -147,19 +147,28 @@ A default Docker installation is intentionally separate from the public portfoli
 - application secrets and environment-specific configuration come from `.env`;
 - MySQL and uploaded media persist in named Docker volumes.
 
-Requirements: Docker Engine/Desktop with Docker Compose.
+Requirements: Git, Docker Engine, and the Docker Compose plugin.
 
 ```bash
+git clone https://github.com/robert-viquez/financial-accounting-web-system.git
+cd financial-accounting-web-system
 cp .env.example .env
-# Replace every placeholder with local-only values.
-docker compose up --build
+# Replace CHANGE_ME values and add the server address to DJANGO_ALLOWED_HOSTS.
+docker compose up -d --build
 ```
 
-Open `http://localhost:5173`, then create a technical administrator only if needed:
+Open `http://SERVER_IP:5173` (or the configured `FRONTEND_PORT`). On a fresh database, FAWS opens the initial setup screen. Create the first technical administrator there; no `createsuperuser` command is needed. The setup endpoint becomes unavailable as soon as an active superuser exists.
+
+Verify the installation:
 
 ```bash
-docker compose exec backend python manage.py createsuperuser
+docker compose ps
+curl --fail http://127.0.0.1:5173/api/health/
 ```
+
+The backend entrypoint applies migrations and collects static files whenever its container starts. Upgrade with `git pull` followed by `docker compose up -d --build`.
+
+`mysql_data` stores MySQL data, `media_data` stores uploads, and `static_data` shares collected Django assets with Nginx. `docker compose down` removes containers and networks but retains these volumes. **`docker compose down -v` permanently deletes the application database and persisted application volumes.**
 
 See [.env.example](.env.example) for available configuration and [docs/deployment-demo.md](docs/deployment-demo.md) for the explicitly enabled demo setup.
 
@@ -204,14 +213,15 @@ npm run build
 ├── docs/                 # Deployment notes and product screenshots
 ├── scripts/              # Demo reset tooling
 ├── .github/workflows/    # Continuous integration
-└── compose.yml           # FAWS application stack
+├── compose.yml           # Portable FAWS application stack
+└── compose.homeserver.yml # earth-2 external proxy-network override
 ```
 
 With the application running, Swagger UI is available at `/api/docs/`, the OpenAPI schema at `/api/schema/`, and the database-aware health check at `/api/health/`.
 
 ## Project context
 
-FAWS began as a university graduation project for a small-business accounting use case and continues as a portfolio project focused on full-stack engineering, systems administration, containerization, and cloud connectivity. ByteForge Technologies the fictional public-demo dataset; clean installations have no preset company identity.
+FAWS began as a university graduation project for a small-business accounting use case and continues as a portfolio project focused on full-stack engineering, systems administration, containerization, and cloud connectivity. ByteForge Technologies is the fictional public-demo dataset; clean installations have no preset company identity.
 
 ## License
 
