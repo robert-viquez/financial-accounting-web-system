@@ -62,6 +62,7 @@ The Vue single-page application consumes a JWT-protected REST API. Django domain
 ├── frontend/                # Vue/Vite application and Nginx config
 ├── docker/                  # Container entrypoint scripts
 ├── docs/screenshots/        # Portfolio screenshot checklist/assets
+├── scripts/reset-demo.sh    # Explicit, lock-protected demo reset
 ├── .github/workflows/       # Continuous integration
 ├── compose.yml              # Local application stack
 └── requirements.txt         # Python dependencies
@@ -89,16 +90,20 @@ docker compose down
 
 ### Load reproducible demo data
 
-The reset is deliberately guarded and only runs with debug mode and explicit authorization. Use fictitious data and choose a temporary password:
+The reset is deliberately guarded by explicit authorization. Use the fictional technology-retail dataset and choose a temporary password:
 
 ```bash
 docker compose exec \
   -e ALLOW_DEMO_SEED=true \
-  -e DEMO_USER_PASSWORD='choose-a-temporary-local-password' \
+  -e DEMO_PASSWORD='choose-a-temporary-local-password' \
   backend python manage.py seed_demo --reset --seed 20260828
 ```
 
 The command uses normal application flows and validates totals, balances, inventory relationships, and double-entry accounting. Never use it against a database containing data you need.
+
+### Linux homeserver portfolio demo
+
+FAWS can run as a resettable Docker Compose demo behind a separately managed Cloudflare Tunnel. Bind Nginx to `127.0.0.1:5173`, seed the fictional ByteForge Technologies records explicitly, and schedule the lock-protected reset script on the host. See [the demo deployment guide](docs/deployment-demo.md) for configuration, proxy details, commands, and limitations. No public URL is asserted by this repository.
 
 ## Local development without Docker
 
@@ -168,7 +173,7 @@ Recommended captures: dashboard, inventory, sales workflow, balanced accounting 
 - `DJANGO_DEBUG=true`, local CORS origins, and HTTP are development settings only.
 - Production requires `DJANGO_DEBUG=false`, a strong `DJANGO_SECRET_KEY`, explicit allowed hosts/origins, TLS at a trusted proxy, backup/restore procedures, and reviewed secret management.
 - The application fails fast if the Django secret is missing outside debug mode.
-- Demo reset requires both `DJANGO_DEBUG=true` and `ALLOW_DEMO_SEED=true`; the demo password is supplied only through the environment.
+- Demo reset requires `ALLOW_DEMO_SEED=true`; the demo username/password are supplied only through the environment and work with `DJANGO_DEBUG=false`.
 
 ## Roadmap
 
