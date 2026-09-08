@@ -1,6 +1,25 @@
 from django.db import models
 
 
+LOCALES_USUARIO = [("es", "Español"), ("en", "English")]
+LOCALES_APLICACION = [("auto", "Automático"), *LOCALES_USUARIO]
+
+
+class PreferenciaUsuario(models.Model):
+    usuario = models.OneToOneField(
+        "auth.User", on_delete=models.CASCADE, related_name="preferencias"
+    )
+    locale = models.CharField(
+        max_length=2, choices=LOCALES_USUARIO, blank=True, default=""
+    )
+
+    class Meta:
+        verbose_name = "Preferencia de usuario"
+
+    def __str__(self):
+        return f"{self.usuario.username}: {self.locale or 'heredado'}"
+
+
 class ConfiguracionEmpresa(models.Model):
     nombre = models.CharField(max_length=200, blank=True, default="")
     identificacion = models.CharField(max_length=50, blank=True, default="")
@@ -12,6 +31,9 @@ class ConfiguracionEmpresa(models.Model):
         max_length=3,
         choices=[("CRC", "Colón costarricense"), ("USD", "Dólar estadounidense")],
         default="CRC",
+    )
+    locale_predeterminado = models.CharField(
+        max_length=4, choices=LOCALES_APLICACION, default="auto"
     )
     lector_codigo_barras = models.BooleanField(default=True)
     prefijo_productos = models.CharField(max_length=8, blank=True, default="")

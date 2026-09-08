@@ -6,6 +6,21 @@ from .models import ConfiguracionEmpresa
 
 
 class AutenticacionTests(APITestCase):
+    def test_perfil_valida_y_persiste_locale_sin_escalar_privilegios(self):
+        user = User.objects.create_user("locale-user", password="ClaveInicial123!")
+        self.client.force_authenticate(user)
+        saved = self.client.patch(
+            "/api/mi-perfil/", {"locale": "en", "is_staff": True}, format="json"
+        )
+        self.assertEqual(saved.status_code, status.HTTP_200_OK)
+        self.assertEqual(saved.data["locale"], "en")
+        user.refresh_from_db()
+        self.assertFalse(user.is_staff)
+        self.assertEqual(user.preferencias.locale, "en")
+
+        invalid = self.client.patch("/api/mi-perfil/", {"locale": "fr"}, format="json")
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
+
     def test_endpoint_protegido_rechaza_usuario_anonimo(self):
         response = self.client.get("/api/productos/")
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
@@ -72,6 +87,26 @@ class AutenticacionTests(APITestCase):
         self.assertFalse(reloaded.data["lector_codigo_barras"])
         configuracion.refresh_from_db()
         self.assertFalse(configuracion.lector_codigo_barras)
+
+    def test_locale_global_solo_administrador_modifica_y_valida(self):
+        normal = User.objects.create_user("locale-normal", password="ClaveInicial123!")
+        admin = User.objects.create_user("locale-admin", password="ClaveInicial123!", is_staff=True)
+        self.client.force_authenticate(normal)
+        denied = self.client.patch(
+            "/api/configuracion-empresa/", {"locale_predeterminado": "en"}, format="json"
+        )
+        self.assertEqual(denied.status_code, status.HTTP_403_FORBIDDEN)
+
+        self.client.force_authenticate(admin)
+        saved = self.client.patch(
+            "/api/configuracion-empresa/", {"locale_predeterminado": "en"}, format="json"
+        )
+        self.assertEqual(saved.status_code, status.HTTP_200_OK)
+        self.assertEqual(saved.data["locale_predeterminado"], "en")
+        invalid = self.client.patch(
+            "/api/configuracion-empresa/", {"locale_predeterminado": "fr"}, format="json"
+        )
+        self.assertEqual(invalid.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_configuracion_visual_es_publica_pero_solo_admin_la_modifica(self):
         public_response = self.client.get("/api/identidad-empresa/")

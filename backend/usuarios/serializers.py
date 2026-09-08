@@ -2,7 +2,7 @@ from django.contrib.auth.models import Group, Permission, User
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import ConfiguracionEmpresa, RegistroAuditoria
+from .models import ConfiguracionEmpresa, PreferenciaUsuario, RegistroAuditoria
 
 
 def permisos_negocio():
@@ -26,21 +26,38 @@ class ConfiguracionEmpresaSerializer(serializers.ModelSerializer):
 class IdentidadEmpresaSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConfiguracionEmpresa
-        fields = ["nombre", "logo"]
+        fields = ["nombre", "logo", "locale_predeterminado"]
 
 
 class PerfilSerializer(serializers.ModelSerializer):
     nombre = serializers.SerializerMethodField()
     correo = serializers.EmailField(source="email", required=False, allow_blank=True)
     roles = serializers.SlugRelatedField(source="groups", many=True, slug_field="name", read_only=True)
+    locale = serializers.ChoiceField(
+        choices=["es", "en"], allow_blank=True, required=False, write_only=True
+    )
 
     class Meta:
         model = User
-        fields = ["id", "username", "nombre", "first_name", "last_name", "correo", "roles", "is_active", "is_staff", "is_superuser"]
+        fields = ["id", "username", "nombre", "first_name", "last_name", "correo", "locale", "roles", "is_active", "is_staff", "is_superuser"]
         read_only_fields = ["username", "roles", "is_active", "is_staff", "is_superuser"]
 
     def get_nombre(self, obj) -> str:
         return obj.get_full_name() or obj.username
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["locale"] = getattr(getattr(instance, "preferencias", None), "locale", "")
+        return data
+
+    def update(self, instance, validated_data):
+        locale = validated_data.pop("locale", serializers.empty)
+        instance = super().update(instance, validated_data)
+        if locale is not serializers.empty:
+            preferencias, _ = PreferenciaUsuario.objects.get_or_create(usuario=instance)
+            preferencias.locale = locale
+            preferencias.save(update_fields=["locale"])
+        return instance
 
 
 class UsuarioAdminSerializer(serializers.ModelSerializer):

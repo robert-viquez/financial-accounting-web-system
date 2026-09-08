@@ -152,6 +152,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = "es-cr"
 
+LANGUAGES = [
+    ("es", "Español"),
+    ("en", "English"),
+]
+
 TIME_ZONE = "America/Costa_Rica"
 
 USE_I18N = True
