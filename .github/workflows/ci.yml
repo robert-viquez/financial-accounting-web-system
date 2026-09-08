@@ -56,3 +56,24 @@ jobs:
         run: |
           docker build -f backend/Dockerfile -t accounting-backend .
           docker build -t accounting-frontend frontend
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - backend
+      - frontend
+      - docker
+
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - faws-demo
+
+    concurrency:
+      group: faws-demo-production
+      cancel-in-progress: false
+
+    steps:
+      - name: Deploy FAWS demo
+        run: /docker/faws-demo/financial-accounting-web-system/scripts/deploy-demo.sh
