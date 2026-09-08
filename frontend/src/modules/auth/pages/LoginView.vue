@@ -9,9 +9,8 @@ import { applyLocale } from "@/i18n";
 const router = useRouter();
 const { locale, t } = useI18n();
 
-const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
-const username = ref(demoMode ? import.meta.env.VITE_DEMO_USERNAME || "" : "");
-const password = ref(demoMode ? import.meta.env.VITE_DEMO_PASSWORD || "" : "");
+const username = ref("");
+const password = ref("");
 const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
@@ -60,7 +59,6 @@ function changeLanguage(value) {
       <img v-if="logoUrl" class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
       <h1>{{ empresaNombre }}</h1>
       <p class="login-subtitle">{{ $t("auth.systemName") }}</p>
-      <p v-if="demoMode" class="demo-notice">{{ $t("auth.demoCredentials") }}</p>
 
       <form @submit.prevent="handleLogin">
         <label for="username">{{ $t("auth.username") }}</label>
@@ -169,17 +167,6 @@ h1 {
 .login-subtitle {
   color: #4b5563;
   margin-bottom: 24px;
-}
-
-.demo-notice {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  color: #1e40af;
-  font-size: 0.9rem;
-  margin: -8px 0 20px;
-  padding: 10px 12px;
-  text-align: center;
 }
 
 form {

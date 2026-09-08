@@ -22,7 +22,7 @@
     "systemName": "Sistema financiero-contable", "username": "Usuario", "password": "Contraseña",
     "login": "Iniciar sesión", "loggingIn": "Ingresando...", "logout": "Cerrar sesión",
     "showPassword": "Mostrar contraseña", "hidePassword": "Ocultar contraseña",
-    "loginError": "No se pudo iniciar sesión.", "demoCredentials": "Credenciales de demostración precargadas."
+    "loginError": "No se pudo iniciar sesión."
   },
   "setup": {
     "title": "Configuración inicial", "subtitle": "Cree la cuenta del primer administrador técnico.",

@@ -22,7 +22,7 @@
     "systemName": "Financial accounting system", "username": "Username", "password": "Password",
     "login": "Sign in", "loggingIn": "Signing in...", "logout": "Sign out",
     "showPassword": "Show password", "hidePassword": "Hide password",
-    "loginError": "Unable to sign in.", "demoCredentials": "Demo credentials are prefilled."
+    "loginError": "Unable to sign in."
   },
   "setup": {
     "title": "Initial setup", "subtitle": "Create the first technical administrator account.",
