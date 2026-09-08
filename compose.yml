@@ -1,80 +1,12 @@
 services:
-  db:
-    image: mysql:8.4
-    restart: unless-stopped
-    environment:
-      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
-      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD in .env}
-    volumes:
-      - mysql_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD --silent"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-      start_period: 20s
-
-  backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
-    restart: unless-stopped
-    environment:
-      DJANGO_DEBUG: ${DJANGO_DEBUG:-true}
-      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set DJANGO_SECRET_KEY in .env}
-      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
-      DJANGO_SECURE_SSL_REDIRECT: ${DJANGO_SECURE_SSL_REDIRECT:-false}
-      DJANGO_SECURE_HSTS_SECONDS: ${DJANGO_SECURE_HSTS_SECONDS:-0}
-      DJANGO_TRUST_X_FORWARDED_PROTO: ${DJANGO_TRUST_X_FORWARDED_PROTO:-true}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
-      ALLOW_DEMO_SEED: ${ALLOW_DEMO_SEED:-false}
-      DEMO_USERNAME: ${DEMO_USERNAME:-demo}
-      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
-      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE in .env}
-      MYSQL_USER: ${MYSQL_USER:?Set MYSQL_USER in .env}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
-      MYSQL_HOST: db
-      MYSQL_PORT: "3306"
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - media_data:/app/media
-      - static_data:/app/staticfiles
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/', timeout=2)"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-
-  frontend:
-    build:
-      context: frontend
-      args:
-        VITE_API_URL: ${VITE_API_URL:-/api/}
-        VITE_DEMO_MODE: ${VITE_DEMO_MODE:-false}
-        VITE_DEMO_USERNAME: ${VITE_DEMO_USERNAME:-}
-        VITE_DEMO_PASSWORD: ${VITE_DEMO_PASSWORD:-}
+  faws:
+    image: ${FAWS_IMAGE:-ghcr.io/robert-viquez/financial-accounting-web-system:latest}
+    build: .
     restart: unless-stopped
     ports:
-      - "${FRONTEND_BIND_ADDRESS:-0.0.0.0}:${FRONTEND_PORT:-5173}:80"
-    depends_on:
-      backend:
-        condition: service_healthy
+      - "${FAWS_PORT:-8080}:80"
     volumes:
-      - static_data:/usr/share/nginx/static:ro
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
+      - faws_data:/data
 
 volumes:
-  mysql_data:
-  media_data:
-  static_data:
+  faws_data:
