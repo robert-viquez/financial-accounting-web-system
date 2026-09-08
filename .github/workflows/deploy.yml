@@ -1,0 +1,65 @@
+name: Deploy FAWS demo
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  deployment-plan:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.metadata.outputs.deploy }}
+      commit: ${{ steps.metadata.outputs.commit }}
+    steps:
+      - name: Download metadata from the successful CI run
+        uses: actions/download-artifact@v4
+        with:
+          name: deployment-metadata
+          path: deployment-metadata
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Read deployment metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          source deployment-metadata/deployment-metadata.txt
+
+          if [[ "$commit" != "${{ github.event.workflow_run.head_sha }}" ]]; then
+            echo "Deployment metadata does not match the completed CI commit." >&2
+            exit 1
+          fi
+
+          echo "deploy=$deploy" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: deployment-plan
+    if: needs.deployment-plan.outputs.deploy == 'true'
+    runs-on:
+      - self-hosted
+      - Linux
+      - X64
+      - faws-demo
+    concurrency:
+      group: faws-demo-production
+      cancel-in-progress: false
+    steps:
+      - name: Check out the validated deployment tooling
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.deployment-plan.outputs.commit }}
+          persist-credentials: false
+      - name: Deploy the validated commit
+        env:
+          EXPECTED_COMMIT: ${{ needs.deployment-plan.outputs.commit }}
+        run: ./scripts/deploy-demo.sh

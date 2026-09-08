@@ -9,6 +9,40 @@ permissions:
   contents: read
 
 jobs:
+  deployment-metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Determine whether this push changes the deployed application
+        id: runtime-changes
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          deploy=false
+          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/main" ]]; then
+            before="${{ github.event.before }}"
+            after="${{ github.sha }}"
+
+            if [[ "$before" == "0000000000000000000000000000000000000000" ]]; then
+              changed_files="$(git ls-tree -r --name-only "$after")"
+            else
+              changed_files="$(git diff --name-only "$before" "$after")"
+            fi
+
+            if grep -Eq '^(backend/|frontend/|docker/|scripts/|compose\.yml$|requirements\.txt$)' <<<"$changed_files"; then
+              deploy=true
+            fi
+          fi
+
+          printf 'deploy=%s\ncommit=%s\n' "$deploy" "${{ github.sha }}" > deployment-metadata.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deployment-metadata
+          path: deployment-metadata.txt
+          retention-days: 1
   backend:
     runs-on: ubuntu-latest
     steps:
@@ -56,24 +90,3 @@ jobs:
         run: |
           docker build -f backend/Dockerfile -t accounting-backend .
           docker build -t accounting-frontend frontend
-
-  deploy:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs:
-      - backend
-      - frontend
-      - docker
-
-    runs-on:
-      - self-hosted
-      - Linux
-      - X64
-      - faws-demo
-
-    concurrency:
-      group: faws-demo-production
-      cancel-in-progress: false
-
-    steps:
-      - name: Deploy FAWS demo
-        run: /docker/faws-demo/financial-accounting-web-system/scripts/deploy-demo.sh
