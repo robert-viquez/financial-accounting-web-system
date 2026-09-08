@@ -2,13 +2,13 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from "vue";
 
 import PageHeader from "@/components/common/PageHeader.vue";
+import AuditoriaSistema from "@/modules/configuracion/components/AuditoriaSistema.vue";
+import RolesPermisos from "@/modules/configuracion/components/RolesPermisos.vue";
+import UsuariosAdmin from "@/modules/configuracion/components/UsuariosAdmin.vue";
 import {
   cambiarPassword as cambiarPasswordApi,
   getConfiguracion,
-  getAuditoria,
   getPerfil,
-  getRoles,
-  getUsuarios,
   updateConfiguracion,
   updatePerfil,
 } from "@/modules/configuracion/api/configuracionService";
@@ -36,6 +36,7 @@ const snackbar = ref(false);
 const snackbarText = ref("");
 const snackbarColor = ref("success");
 const saving = ref(false);
+const activeSection = ref("empresa");
 const logoFile = ref(null);
 const logoPreview = ref(defaultLogo);
 let objectUrl = null;
@@ -70,9 +71,11 @@ const nuevaUnidad = reactive({
 });
 
 const perfil = reactive({
+  id: null,
   nombre: "",
   correo: "",
   is_staff: false,
+  is_superuser: false,
 });
 
 const isAdministrator = computed(() => perfil.is_staff);
@@ -87,10 +90,6 @@ const password = reactive({
   nueva: "",
   confirmar: "",
 });
-
-const roles = ref([]);
-const usuarios = ref([]);
-const auditoria = ref([]);
 
 function mensaje(texto, color = "success") {
   snackbarText.value = texto;
@@ -111,10 +110,9 @@ function mensajeError(error, fallback) {
 
 async function cargarConfiguracion() {
   try {
-    const [config, currentProfile, roleData, unitData, paymentData, saleTypeData] = await Promise.all([
+    const [config, currentProfile, unitData, paymentData, saleTypeData] = await Promise.all([
       getConfiguracion(),
       getPerfil(),
-      getRoles(),
       getUnidadesMedida({ ordering: "nombre" }),
       getMediosPago({ ordering: "nombre", page_size: 100 }),
       getTiposVenta({ ordering: "nombre", page_size: 100 }),
@@ -129,21 +127,15 @@ async function cargarConfiguracion() {
     inventario.lector_codigo_barras = config.lector_codigo_barras;
     inventario.prefijo_productos = config.prefijo_productos;
     logoPreview.value = config.logo || defaultLogo;
+    perfil.id = currentProfile.id;
     perfil.nombre = currentProfile.nombre;
     perfil.correo = currentProfile.correo;
     perfil.is_staff = currentProfile.is_staff;
-    roles.value = roleData;
+    perfil.is_superuser = currentProfile.is_superuser;
+    if (!currentProfile.is_staff) activeSection.value = "perfil";
     unidades.value = unitData.results ?? unitData;
     mediosPago.value = paymentData.results ?? paymentData;
     tiposVenta.value = saleTypeData.results ?? saleTypeData;
-    try {
-      const userData = await getUsuarios();
-      usuarios.value = userData.results ?? userData;
-      const auditData = await getAuditoria();
-      auditoria.value = auditData.results ?? auditData;
-    } catch {
-      usuarios.value = [currentProfile];
-    }
   } catch {
     mensaje("No se pudo cargar la configuración.", "error");
   }
@@ -342,29 +334,41 @@ onBeforeUnmount(() => {
       La configuración global solo puede ser modificada por administradores.
     </v-alert>
 
+    <v-tabs v-model="activeSection" class="mb-4" show-arrows>
+      <v-tab v-if="isAdministrator" value="general">General</v-tab>
+      <v-tab v-if="isAdministrator" value="empresa">Empresa</v-tab>
+      <v-tab v-if="isAdministrator" value="inventario">Inventario</v-tab>
+      <v-tab v-if="isAdministrator" value="ventas">Ventas</v-tab>
+      <v-tab v-if="isAdministrator" value="usuarios">Usuarios y acceso</v-tab>
+      <v-tab v-if="isAdministrator" value="roles">Roles y permisos</v-tab>
+      <v-tab v-if="isAdministrator" value="auditoria">Auditoría</v-tab>
+      <v-tab value="perfil">Mi perfil</v-tab>
+    </v-tabs>
+
     <v-row>
-      <v-col v-if="isAdministrator" cols="12" lg="6">
+      <v-col v-if="isAdministrator" v-show="activeSection === 'general'" cols="12">
         <v-card class="admin-card" color="primary" variant="tonal">
           <v-card-item prepend-icon="mdi-shield-crown-outline">
-            <v-card-title>Panel de administración</v-card-title>
+            <v-card-title>Administración técnica</v-card-title>
             <v-card-subtitle>
-              Administración avanzada de usuarios y datos del sistema.
+              Django Admin · Solo superusuarios. Consola de recuperación e inspección técnica.
             </v-card-subtitle>
             <template #append>
               <v-btn
+                v-if="perfil.is_superuser"
                 :href="adminUrl"
                 color="primary"
                 append-icon="mdi-open-in-new"
                 size="small"
               >
-                Ingresar al panel
+                Abrir Django Admin
               </v-btn>
             </template>
           </v-card-item>
         </v-card>
       </v-col>
 
-      <v-col cols="12">
+      <v-col v-show="activeSection === 'empresa'" cols="12">
         <v-card class="config-card">
           <v-card-title>Identidad visual</v-card-title>
           <v-card-subtitle>
@@ -392,7 +396,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'empresa'" cols="12" lg="6">
         <v-card class="config-card">
           <v-card-title>Datos de la empresa</v-card-title>
           <v-card-text>
@@ -417,7 +421,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'inventario'" cols="12" lg="6">
         <v-card class="config-card">
           <v-card-title>Inventario y códigos</v-card-title>
           <v-card-text>
@@ -448,7 +452,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12">
+      <v-col v-show="activeSection === 'inventario'" cols="12">
         <v-card class="config-card">
           <v-card-title>Unidades de medida</v-card-title>
           <v-card-subtitle>
@@ -486,7 +490,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'ventas'" cols="12" lg="6">
         <v-card class="config-card">
           <v-card-title>Métodos de pago</v-card-title>
           <v-card-subtitle>Opciones disponibles al registrar ventas y cobros.</v-card-subtitle>
@@ -509,7 +513,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'ventas'" cols="12" lg="6">
         <v-card class="config-card">
           <v-card-title>Tipos de venta</v-card-title>
           <v-card-subtitle>Clasificaciones disponibles al crear una venta.</v-card-subtitle>
@@ -536,26 +540,11 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12">
-        <v-card>
-          <v-card-title>Auditoría reciente</v-card-title>
-          <v-table density="compact">
-            <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Ruta</th><th>Resultado</th></tr></thead>
-            <tbody>
-              <tr v-if="!auditoria.length"><td colspan="5" class="empty-cell">No hay datos disponibles.</td></tr>
-              <tr v-for="item in auditoria" :key="item.id">
-                <td>{{ new Date(item.fecha).toLocaleString("es-CR") }}</td>
-                <td>{{ item.usuario_nombre }}</td>
-                <td>{{ item.metodo }}</td>
-                <td>{{ item.ruta }}</td>
-                <td>{{ item.codigo_respuesta }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card>
+      <v-col v-if="isAdministrator" v-show="activeSection === 'auditoria'" cols="12">
+        <AuditoriaSistema />
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'empresa'" cols="12" lg="6">
         <v-card>
           <v-card-title>Impuestos</v-card-title>
           <v-card-text>
@@ -578,7 +567,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'perfil'" cols="12" lg="6">
         <v-card>
           <v-card-title>Perfil</v-card-title>
           <v-card-text>
@@ -594,7 +583,7 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
+      <v-col v-show="activeSection === 'perfil'" cols="12" lg="6">
         <v-card>
           <v-card-title>Cambiar contraseña</v-card-title>
           <v-card-text>
@@ -616,46 +605,20 @@ onBeforeUnmount(() => {
         </v-card>
       </v-col>
 
-      <v-col cols="12" lg="6">
-        <v-card>
-          <v-card-title>Usuarios</v-card-title>
-          <v-table density="compact">
-            <thead>
-              <tr>
-                <th>Nombre</th>
-                <th>Rol</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-if="!usuarios.length"><td colspan="3" class="empty-cell">No hay datos disponibles.</td></tr>
-              <tr v-for="usuario in usuarios" :key="usuario.nombre">
-                <td>{{ usuario.nombre }}</td>
-                <td>{{ usuario.roles?.join(", ") || "Sin rol" }}</td>
-                <td>{{ usuario.is_active ? "Activo" : "Inactivo" }}</td>
-              </tr>
-            </tbody>
-          </v-table>
-        </v-card>
+      <v-col v-if="isAdministrator" v-show="activeSection === 'usuarios'" cols="12">
+        <UsuariosAdmin
+          :current-user-id="perfil.id"
+          :is-superuser="perfil.is_superuser"
+          @message="mensaje"
+        />
       </v-col>
 
-      <v-col cols="12" lg="6">
-        <v-card>
-          <v-card-title>Roles</v-card-title>
-          <v-list density="compact">
-            <v-list-item v-if="!roles.length" title="No hay datos disponibles." />
-            <v-list-item
-              v-for="rol in roles"
-              :key="rol.nombre"
-              :title="rol.nombre"
-              :subtitle="rol.descripcion"
-            />
-          </v-list>
-        </v-card>
+      <v-col v-if="isAdministrator" v-show="activeSection === 'roles'" cols="12">
+        <RolesPermisos @message="mensaje" />
       </v-col>
     </v-row>
 
-    <div class="d-flex justify-end mt-4">
+    <div v-if="['empresa', 'inventario', 'perfil'].includes(activeSection)" class="d-flex justify-end mt-4">
       <v-btn color="primary" prepend-icon="mdi-content-save" :loading="saving" @click="guardarConfiguracion">
         {{ isAdministrator ? "Guardar configuración" : "Guardar perfil" }}
       </v-btn>

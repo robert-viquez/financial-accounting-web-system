@@ -27,14 +27,50 @@ export async function cambiarPassword(data) {
   return (await api.post("cambiar-password/", data)).data;
 }
 
-export async function getUsuarios() {
-  return (await api.get("usuarios/")).data;
+export async function getUsuarios(params = {}) {
+  return (await api.get("usuarios/", { params })).data;
+}
+
+export async function createUsuario(data) {
+  return (await api.post("usuarios/", data)).data;
+}
+
+export async function updateUsuario(id, data) {
+  return (await api.patch(`usuarios/${id}/`, data)).data;
+}
+
+export async function deleteUsuario(id) {
+  return api.delete(`usuarios/${id}/`);
+}
+
+export async function setUsuarioPassword(id, password) {
+  return (await api.post(`usuarios/${id}/password/`, { password })).data;
 }
 
 export async function getRoles() {
   return (await api.get("roles/")).data;
 }
 
-export async function getAuditoria() {
-  return (await api.get("auditoria/", { params: { page_size: 20 } })).data;
+export async function createRol(data) {
+  return (await api.post("roles/", data)).data;
+}
+
+export async function updateRol(id, data) {
+  return (await api.patch(`roles/${id}/`, data)).data;
+}
+
+export async function deleteRol(id) {
+  return api.delete(`roles/${id}/`);
+}
+
+export async function getPermisos() {
+  return (await api.get("permisos/")).data;
+}
+
+export async function getAuditoria(params = {}) {
+  return (await api.get("auditoria/", { params: { page_size: 20, ...params } })).data;
+}
+
+export async function getInformacionSistema() {
+  return (await api.get("informacion-sistema/")).data;
 }
