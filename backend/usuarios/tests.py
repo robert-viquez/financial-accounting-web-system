@@ -1,6 +1,6 @@
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, Permission, User
 
 from .models import ConfiguracionEmpresa
 
@@ -84,3 +84,124 @@ class AutenticacionTests(APITestCase):
             format="json",
         )
         self.assertEqual(denied.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class AdministracionUsuariosTests(APITestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user("staff", password="ClaveInicial123!", is_staff=True)
+        self.superuser = User.objects.create_superuser("root", password="ClaveInicial123!")
+        self.normal = User.objects.create_user("normal", password="ClaveInicial123!")
+
+    def test_no_administrador_no_puede_gestionar_usuarios(self):
+        self.client.force_authenticate(self.normal)
+        self.assertEqual(self.client.get("/api/usuarios/").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self.client.post("/api/usuarios/", {"username": "nuevo", "password": "ClaveNueva123!"}).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
+    def test_staff_lista_crea_desactiva_y_restablece_password(self):
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(self.client.get("/api/usuarios/").status_code, status.HTTP_200_OK)
+        created = self.client.post(
+            "/api/usuarios/",
+            {"username": "nuevo", "first_name": "Nuevo", "password": "ClaveNueva123!"},
+            format="json",
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        user_id = created.data["id"]
+        changed = self.client.patch(f"/api/usuarios/{user_id}/", {"is_active": False}, format="json")
+        self.assertEqual(changed.status_code, status.HTTP_200_OK)
+        self.assertFalse(changed.data["is_active"])
+        reset = self.client.post(
+            f"/api/usuarios/{user_id}/password/", {"password": "OtraClave456!"}, format="json"
+        )
+        self.assertEqual(reset.status_code, status.HTTP_200_OK)
+        self.assertTrue(User.objects.get(pk=user_id).check_password("OtraClave456!"))
+
+    def test_validacion_password_se_aplica(self):
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(
+            "/api/usuarios/", {"username": "inseguro", "password": "123"}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_staff_no_puede_escalar_ni_modificar_superusuario(self):
+        self.client.force_authenticate(self.staff)
+        escalated = self.client.patch(
+            f"/api/usuarios/{self.staff.pk}/", {"is_staff": False, "is_superuser": True}, format="json"
+        )
+        self.assertEqual(escalated.status_code, status.HTTP_400_BAD_REQUEST)
+        self.staff.refresh_from_db()
+        self.assertTrue(self.staff.is_staff)
+        self.assertFalse(self.staff.is_superuser)
+        denied = self.client.patch(
+            f"/api/usuarios/{self.superuser.pk}/", {"first_name": "Cambio"}, format="json"
+        )
+        self.assertEqual(denied.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(
+            self.client.delete(f"/api/usuarios/{self.superuser.pk}/").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.assertEqual(
+            self.client.patch(
+                f"/api/usuarios/{self.staff.pk}/", {"is_active": False}, format="json"
+            ).status_code,
+            status.HTTP_400_BAD_REQUEST,
+        )
+
+    def test_perfil_no_permite_autoasignar_roles(self):
+        role = Group.objects.create(name="Privilegiado")
+        self.client.force_authenticate(self.normal)
+        response = self.client.patch(
+            "/api/mi-perfil/", {"roles": [role.name], "is_staff": True}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.normal.refresh_from_db()
+        self.assertFalse(self.normal.is_staff)
+        self.assertFalse(self.normal.groups.exists())
+
+    def test_superusuario_puede_cambiar_estado_staff_pero_no_superuser(self):
+        self.client.force_authenticate(self.superuser)
+        promoted = self.client.patch(
+            f"/api/usuarios/{self.normal.pk}/", {"is_staff": True}, format="json"
+        )
+        self.assertEqual(promoted.status_code, status.HTTP_200_OK)
+        self.assertTrue(promoted.data["is_staff"])
+        self.assertTrue(self.superuser.is_superuser)
+
+
+class AdministracionRolesTests(APITestCase):
+    def setUp(self):
+        self.staff = User.objects.create_user("staff-roles", password="ClaveInicial123!", is_staff=True)
+        self.normal = User.objects.create_user("normal-roles", password="ClaveInicial123!")
+        self.permission = Permission.objects.filter(content_type__app_label="inventario").first()
+
+    def test_staff_crea_actualiza_permisos_y_elimina_rol_sin_uso(self):
+        self.client.force_authenticate(self.staff)
+        created = self.client.post(
+            "/api/roles/", {"name": "Bodega temporal", "permisos": [self.permission.pk]}, format="json"
+        )
+        self.assertEqual(created.status_code, status.HTTP_201_CREATED)
+        role_id = created.data["id"]
+        self.assertEqual(created.data["permisos"], [self.permission.pk])
+        updated = self.client.patch(f"/api/roles/{role_id}/", {"name": "Bodega", "permisos": []}, format="json")
+        self.assertEqual(updated.status_code, status.HTTP_200_OK)
+        self.assertEqual(updated.data["permisos"], [])
+        self.assertEqual(self.client.delete(f"/api/roles/{role_id}/").status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_rol_en_uso_no_se_elimina_y_no_admin_no_gestiona(self):
+        role = Group.objects.create(name="Ventas temporal")
+        self.normal.groups.add(role)
+        self.client.force_authenticate(self.staff)
+        self.assertEqual(self.client.delete(f"/api/roles/{role.pk}/").status_code, status.HTTP_403_FORBIDDEN)
+        self.client.force_authenticate(self.normal)
+        self.assertEqual(self.client.get("/api/roles/").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_no_se_pueden_asignar_permisos_tecnicos_a_roles(self):
+        permiso_auth = Permission.objects.filter(content_type__app_label="auth").first()
+        self.client.force_authenticate(self.staff)
+        response = self.client.post(
+            "/api/roles/", {"name": "Escalado", "permisos": [permiso_auth.pk]}, format="json"
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
