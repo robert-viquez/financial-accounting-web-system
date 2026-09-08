@@ -32,7 +32,7 @@ jobs:
               changed_files="$(git diff --name-only "$before" "$after")"
             fi
 
-            if grep -Eq '^(backend/|frontend/|docker/|scripts/|compose\.yml$|requirements\.txt$)' <<<"$changed_files"; then
+            if grep -Eq '^(backend/|frontend/|docker/|scripts/|compose(\.homeserver)?\.yml$|requirements\.txt$)' <<<"$changed_files"; then
               deploy=true
             fi
           fi
@@ -90,3 +90,10 @@ jobs:
         run: |
           docker build -f backend/Dockerfile -t accounting-backend .
           docker build -t accounting-frontend frontend
+
+  clean-install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify clean Docker installation and first-run setup
+        run: ./scripts/smoke-clean-install.sh
