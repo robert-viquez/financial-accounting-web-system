@@ -3,7 +3,7 @@ import { onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
 import { login } from "../authService";
 import { getIdentidadEmpresa } from "@/modules/configuracion/api/configuracionService";
-import defaultLogo from "@/assets/queso-los-santos-logo.png";
+import defaultLogo from "@/assets/byteforge-logo.svg";
 
 const router = useRouter();
 
@@ -13,7 +13,7 @@ const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
 const logoUrl = ref(defaultLogo);
-const empresaNombre = ref("Queso Los Santos");
+const empresaNombre = ref("ByteForge Technologies");
 
 onMounted(async () => {
   try {

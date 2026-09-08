@@ -224,7 +224,7 @@ async function exportar(formato) {
     });
     const disposition = response.headers["content-disposition"] || "";
     const match = disposition.match(/filename="?([^";]+)"?/);
-    const fallback = `QuesoLosSantos_Reportes_${new Date().toISOString().slice(0, 10)}.${formato}`;
+    const fallback = `FAWS_Reportes_${new Date().toISOString().slice(0, 10)}.${formato}`;
     descargarArchivo(match?.[1] || fallback, response.data);
   } catch (error) {
     console.error(error);

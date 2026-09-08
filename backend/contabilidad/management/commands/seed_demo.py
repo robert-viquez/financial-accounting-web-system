@@ -1,10 +1,9 @@
-"""Escenario reproducible para la demostración académica de Queso Los Santos."""
+"""Dataset ficticio y reproducible para la demostración de ByteForge Technologies."""
 import os
 import random
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
-from django.conf import settings
 from django.contrib.auth.models import Group, User
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -18,61 +17,52 @@ from finanzas.models import CuentaPorCobrar, CuentaPorPagar, PagoCliente, PagoPr
 from inventario.models import CategoriaProducto, MovimientoInventario, Producto, UnidadMedida
 from inventario.quantities import normalize_quantity
 from terceros.models import Cliente, MedioPago, Proveedor
-from usuarios.models import RegistroAuditoria
+from usuarios.models import ConfiguracionEmpresa, RegistroAuditoria
 from ventas.models import DetalleVenta, SecuenciaComprobanteVenta, Venta
 
 CENT = Decimal("0.01")
 START, END = date(2026, 6, 1), date(2026, 8, 25)
 PRODUCTS = [
-    ("QLS-001", "Queso Turrialba Fresco", "5400", "4210", 8, 4, "KG"),
-    ("QLS-002", "Queso Semiduro", "6400", "4920", 7, 4, "KG"),
-    ("QLS-003", "Queso Mozzarella", "6900", "5240", 7, 4, "KG"),
-    ("QLS-004", "Queso Palmito", "8500", "6460", 5, 3, "KG"),
-    ("QLS-005", "Queso Fresco Bajo en Sal", "5800", "4460", 5, 2, "KG"),
-    ("QLS-006", "Queso Semiduro Bajo en Sal", "6800", "5210", 5, 2, "KG"),
-    ("QLS-007", "Queso Turrialba Fresco 500 g", "2850", "2180", 7, 4, "UND"),
-    ("QLS-008", "Queso Semiduro 500 g", "3350", "2540", 6, 3, "UND"),
-    ("QLS-009", "Mozzarella Rallada 250 g", "2150", "1580", 4, 2, "UND"),
-    ("QLS-010", "Queso Palmito 400 g", "3650", "2720", 4, 1, "UND"),
-    ("QLS-011", "Queso Palmito 800 g", "6850", "5160", 3, 1, "UND"),
-    ("QLS-012", "Queso Crema 210 g", "1450", "1110", 5, 2, "UND"),
-    ("QLS-013", "Queso Crema 350 g", "2250", "1690", 4, 2, "UND"),
-    ("QLS-014", "Yogur Natural 1 L", "1950", "1380", 4, 1, "UND"),
-    ("QLS-015", "Mantequilla Artesanal 250 g", "2450", "1810", 4, 1, "UND"),
-    ("QLS-016", "Natilla 250 g", "1250", "890", 5, 2, "UND"),
-    ("QLS-017", "Natilla 500 g", "2250", "1650", 4, 2, "UND"),
+    ("CPU-001", "AMD Ryzen 7 9700X", "245000", "198000", 3, 5, "UND", "Procesadores"),
+    ("CPU-002", "Intel Core Ultra 7 265K", "265000", "218000", 3, 4, "UND", "Procesadores"),
+    ("GPU-001", "Tarjeta gráfica GeForce RTX 5070 12 GB", "455000", "389000", 2, 5, "UND", "Tarjetas gráficas"),
+    ("GPU-002", "Tarjeta gráfica Radeon RX 9070 16 GB", "429000", "365000", 2, 4, "UND", "Tarjetas gráficas"),
+    ("MB-001", "Tarjeta madre ATX Wi-Fi 7", "159000", "126000", 3, 4, "UND", "Tarjetas madre"),
+    ("RAM-001", "Kit de memoria 32 GB DDR5-6000", "72000", "55000", 5, 7, "UND", "Memoria"),
+    ("SSD-001", "SSD NVMe PCIe 4.0 de 2 TB", "89000", "68000", 5, 8, "UND", "Almacenamiento"),
+    ("PSU-001", "Fuente modular 850 W 80 Plus Gold", "93000", "71000", 3, 4, "UND", "Fuentes de poder"),
+    ("CASE-001", "Gabinete ATX de flujo optimizado", "64000", "47000", 3, 4, "UND", "Gabinetes"),
+    ("COOL-001", "Enfriamiento líquido AIO 240 mm", "69000", "52000", 3, 3, "UND", "Enfriamiento"),
+    ("MON-001", "Monitor IPS 27 pulgadas QHD 165 Hz", "189000", "148000", 3, 6, "UND", "Monitores"),
+    ("KEY-001", "Teclado mecánico inalámbrico", "59000", "41000", 4, 6, "UND", "Teclados"),
+    ("MOU-001", "Mouse ergonómico para juegos", "36000", "24000", 5, 7, "UND", "Mouse"),
+    ("LAP-001", "Laptop empresarial 14 pulgadas", "575000", "487000", 2, 4, "UND", "Laptops"),
+    ("PHN-001", "Smartphone Android 5G 256 GB", "329000", "274000", 3, 5, "UND", "Smartphones"),
+    ("TAB-001", "Tablet de 11 pulgadas 128 GB", "249000", "201000", 3, 4, "UND", "Tablets"),
+    ("NET-001", "Router Wi-Fi 7 de doble banda", "119000", "89000", 3, 5, "UND", "Redes"),
+    ("NET-002", "Switch administrable Gigabit de 8 puertos", "49000", "34000", 4, 4, "UND", "Redes"),
+    ("ACC-001", "Dock USB-C de 10 puertos", "54000", "38000", 5, 6, "UND", "Accesorios"),
+    ("ACC-002", "Webcam Full HD con micrófono", "31000", "21000", 5, 5, "UND", "Accesorios"),
 ]
 CUSTOMERS = [
-    "María Fernanda Rodríguez", "José Andrés Mora", "Andrea Jiménez Solís",
-    "Carlos Vargas Rojas", "Daniela Solano Mora", "Luis Hernández Castro",
-    "Sofía Castro Quesada", "Esteban Araya León", "Natalia Chacón Gómez",
-    "Mauricio Brenes Soto", "Valeria Sánchez Rojas", "Diego Cordero Mora",
-    "Paola Villalobos Arias", "Fernando Salazar Vega", "Gabriela Ureña Solís",
-]
-CUSTOMER_EMAILS = [
-    "maria.rodriguez@gmail.com", "josemora@hotmail.com", None,
-    "carlosvargas88@gmail.com", "danielasolano92@hotmail.com", "luis.hernandez.cr@gmail.com",
-    None, "esteban.araya@outlook.com", "natalia.chacon@gmail.com", None,
-    "valeria.sanchez@yahoo.com", "diego.cordero@gmail.com", None,
-    "fernando.salazar@icloud.com", "gabriela.urena@gmail.com",
-]
-CUSTOMER_PHONES = [
-    "8888-1234", "8312-4567", None, "7014-9821", "8723-4410",
-    "6118-3052", "8450-7731", None, "7102-6639", "8891-5204",
-    "6334-1187", None, "8612-9045", "7208-3341", None,
+    "Estudio Vector S.R.L.", "Café Circuito S.A.", "Nube Clara Consultores",
+    "Laboratorio Prisma S.R.L.", "Taller Horizonte Digital", "Academia Código Norte",
+    "Arquitectura Módulo S.A.", "Punto Cero Diseño", "Logística Faro S.R.L.",
+    "Clínica Nova Salud", "Editorial Píxel S.A.", "Hotel Sendero Azul",
+    "Ingeniería Delta S.R.L.", "Cooperativa Valle Digital", "Servicios Órbita S.A.",
 ]
 SUPPLIERS = [
-    ("Lácteos del Valle Central S.A.", 30, "contacto@lacteosdelvallecentral.co.cr"),
-    ("Distribuidora Los Santos S.R.L.", 15, "ventas@distribuidoralossantos.com"),
-    ("Productos Lácteos Altura S.A.", 30, "pedidos@lacteosaltura.co.cr"),
-    ("Quesos Artesanales del Roble", 15, "quesosartesanalesdelroble@gmail.com"),
-    ("Distribuidora Monte Claro S.A.", 30, "facturacion@distribuidoramonteclaro.net"),
-    ("Lácteos Cordillera Verde S.R.L.", 30, "administracion@lacteoscordilleraverde.co.cr"),
+    ("Silicon Ridge Distribution S.A.", 30, "ventas@siliconridge.test"),
+    ("Nova Components S.R.L.", 15, "pedidos@novacomponents.test"),
+    ("Pacific Device Wholesale S.A.", 30, "cuentas@pacificdevice.test"),
+    ("Vertex Networking S.R.L.", 15, "ventas@vertexnetworking.test"),
+    ("Display Harbor Imports S.A.", 30, "facturacion@displayharbor.test"),
+    ("CoreLink Accessories S.R.L.", 30, "operaciones@corelink.test"),
 ]
 
 
 class Command(BaseCommand):
-    help = "Reconstruye y valida la base demo de Queso Los Santos."
+    help = "Reconstruye y valida la base demo ficticia de ByteForge Technologies."
 
     def add_arguments(self, parser):
         parser.add_argument("--reset", action="store_true")
@@ -80,9 +70,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **opts):
         self._safety(opts["reset"])
-        password = os.getenv("DEMO_USER_PASSWORD")
+        password = os.getenv("DEMO_PASSWORD")
         if not password:
-            raise CommandError("Defina DEMO_USER_PASSWORD; la contraseña demo no se guarda en el repositorio.")
+            raise CommandError("Defina DEMO_PASSWORD; la contraseña demo no se guarda en el repositorio.")
         with transaction.atomic():
             if opts["reset"]:
                 self._reset()
@@ -102,9 +92,9 @@ class Command(BaseCommand):
     @staticmethod
     def _safety(reset):
         allowed = os.getenv("ALLOW_DEMO_SEED", "").lower() in {"1", "true", "yes", "on"}
-        if not settings.DEBUG or not allowed:
+        if not allowed:
             action = "El borrado" if reset else "El seed"
-            raise CommandError(f"{action} fue cancelado: requiere DEBUG=True y ALLOW_DEMO_SEED=true. No se modificó ningún dato.")
+            raise CommandError(f"{action} fue cancelado: requiere ALLOW_DEMO_SEED=true. No se modificó ningún dato.")
         if END > timezone.localdate():
             raise CommandError(f"El periodo termina en {END}; no se permiten fechas futuras.")
 
@@ -114,49 +104,55 @@ class Command(BaseCommand):
         for model in (DetalleAsiento, AsientoContable, PagoCliente, PagoProveedor,
                       CuentaPorCobrar, CuentaPorPagar, DetalleVenta, DetalleCompra,
                       Venta, Compra, MovimientoInventario, SecuenciaComprobanteVenta,
-                      Producto, Cliente, Proveedor, RegistroAuditoria, PeriodoContable):
+                      Producto, Cliente, Proveedor, RegistroAuditoria, PeriodoContable,
+                      CategoriaProducto, ConfiguracionEmpresa):
             model.objects.all().delete()
-        User.objects.exclude(username="rviquez").delete()
+        User.objects.all().delete()
 
     @staticmethod
     def _masters(password):
         admin, _ = Group.objects.get_or_create(name="Administrador")
-        operations, _ = Group.objects.get_or_create(name="Operaciones")
+        Group.objects.get_or_create(name="Operaciones")
         Group.objects.get_or_create(name="Contabilidad")
-        robert, _ = User.objects.get_or_create(username="rviquez")
-        robert.first_name, robert.last_name = "Robert", "Víquez Santos"
-        robert.is_staff = robert.is_superuser = robert.is_active = True
-        robert.save()
-        robert.groups.add(admin)
-        rebeca = User.objects.create_user("rsantos", password=password, first_name="Rebeca",
-                                          last_name="Santos", is_staff=True, is_superuser=True)
-        rebeca.groups.add(admin)
-        cashier = User.objects.create_user("cajero", password=password, first_name="Cajero")
-        cashier.groups.add(operations)
+        username = os.getenv("DEMO_USERNAME", "demo").strip() or "demo"
+        demo = User.objects.create_user(
+            username, email="demo@byteforge.test", password=password,
+            first_name="Usuario", last_name="Demo", is_active=True,
+        )
+        demo.groups.add(admin)
+        ConfiguracionEmpresa.objects.update_or_create(pk=1, defaults={
+            "nombre": "ByteForge Technologies",
+            "identificacion": "FICTICIA-DEMO-001",
+            "telefono": "0000-0000",
+            "correo": "contacto@byteforge.test",
+            "direccion": "Dirección ficticia para demostración, Costa Rica",
+            "iva": Decimal("13.00"), "moneda": "CRC",
+            "lector_codigo_barras": True, "prefijo_productos": "BF",
+        })
         unit, _ = UnidadMedida.objects.update_or_create(
             codigo="UND", defaults={"nombre": "Unidad", "simbolo": "unidades", "permite_decimales": False, "estado": True})
-        kilogram, _ = UnidadMedida.objects.update_or_create(
-            codigo="KG", defaults={"nombre": "Kilogramo", "simbolo": "kg", "permite_decimales": True, "estado": True})
-        category, _ = CategoriaProducto.objects.get_or_create(
-            nombre="Quesos y derivados terminados",
-            defaults={"descripcion": "Productos terminados para venta minorista."})
+        categories = {
+            name: CategoriaProducto.objects.create(
+                nombre=name, descripcion=f"Catálogo ficticio de {name.lower()} para la demostración."
+            )
+            for name in dict.fromkeys(spec[7] for spec in PRODUCTS)
+        }
         products = [Producto.objects.create(
-            codigo=code, nombre=name, categoria=category,
-            unidad_medida=kilogram if unit_code == "KG" else unit,
+            codigo=code, nombre=name, categoria=categories[category], unidad_medida=unit,
             precio_venta=Decimal(price), costo_promedio=Decimal(cost),
             stock_minimo=Decimal(minimum), stock_actual=0,
-            descripcion="Producto terminado disponible para venta minorista.")
-            for code, name, price, cost, minimum, _, unit_code in PRODUCTS]
+            descripcion="Producto de tecnología ficticio para venta minorista.")
+            for code, name, price, cost, minimum, _, _, category in PRODUCTS]
         generic_customer = Cliente.objects.create(
             nombre="Estimado Cliente", identificacion="CF-000000001",
-            telefono="", correo=None, direccion="Los Santos, Costa Rica", dias_credito=0)
+            telefono="", correo=None, direccion="Dirección ficticia, Costa Rica", dias_credito=0)
         customers = [Cliente.objects.create(
-            nombre=name, identificacion=f"1-0910-{i:04d}", telefono=CUSTOMER_PHONES[i - 1],
-            correo=CUSTOMER_EMAILS[i - 1], direccion="Los Santos, Costa Rica",
+            nombre=name, identificacion=f"FIC-CLI-{i:04d}", telefono=f"0000-{i:04d}",
+            correo=f"compras{i}@cliente.test", direccion="Dirección ficticia, Costa Rica",
             dias_credito=30) for i, name in enumerate(CUSTOMERS, 1)]
         suppliers = [Proveedor.objects.create(
-            nombre=name, identificacion=f"3-102-{i:06d}", telefono=f"2200-{i:04d}",
-            correo=email, direccion="Los Santos, Costa Rica",
+            nombre=name, identificacion=f"FIC-PRV-{i:04d}", telefono=f"0001-{i:04d}",
+            correo=email, direccion="Dirección ficticia, Costa Rica",
             dias_credito=days) for i, (name, days, email) in enumerate(SUPPLIERS, 1)]
         methods = {}
         aliases = {"Efectivo": ("efectivo",), "SINPE": ("sinpe", "transferencia"),
@@ -168,7 +164,7 @@ class Command(BaseCommand):
                 method = MedioPago.objects.create(nombre=name)
             methods[name] = method
         ContabilidadService.asegurar_catalogo_base()
-        return {"admin": robert, "cashier": cashier, "products": products,
+        return {"admin": demo, "cashier": demo, "products": products,
                 "generic_customer": generic_customer,
                 "customers": customers, "suppliers": suppliers, "methods": methods}
 
@@ -281,8 +277,8 @@ class Command(BaseCommand):
                         qty = Decimal(rng.choice(["0.225", "0.350", "0.475", "0.650", "0.825", "1.000", "1.250"]))
                 else:
                     qty = Decimal(2 if rng.random() < .18 else 1)
-                if product.stock_actual < qty or running + product.precio_venta * qty > Decimal(35000):
-                    qty = Decimal("0.225") if product.unidad_medida.codigo == "KG" else Decimal(1)
+                if product.stock_actual < qty or running + product.precio_venta * qty > Decimal(900000):
+                    qty = Decimal(1)
                 DetalleVenta.objects.create(venta=sale, producto=product, cantidad=qty,
                     precio_unitario=product.precio_venta, descuento=0)
                 running += product.precio_venta * qty
@@ -444,17 +440,14 @@ class Command(BaseCommand):
                              (inconsistent_moves, "movimientos inconsistentes"), (orphan, "relaciones huérfanas")):
             if count: errors.append(f"{count} {label}")
         if abs(debit - credit) > CENT: errors.append("contabilidad desbalanceada")
-        if Venta.objects.filter(total__gt=40000).exists(): errors.append("venta superior a ₡40.000")
+        if Venta.objects.filter(total__gt=2000000).exists(): errors.append("venta superior a ₡2.000.000")
         if not Decimal("90") <= generic_percentage <= Decimal("95"):
             errors.append("proporción de ventas a Estimado Cliente fuera de 90–95%")
         if generic_credit_sales: errors.append("venta a crédito asociada a Estimado Cliente")
         if forbidden_prefixes: errors.append("código o identificador con prefijo DEMO-")
         if implausible_supplier_emails: errors.append("correo de proveedor no plausible")
-        if not all(Producto.objects.filter(nombre__icontains=name, stock_actual__gt=0,
-                movimientos__isnull=False).distinct().exists() for name in ("Natilla", "Queso Crema")):
-            errors.append("lácteos complementarios sin inventario o movimientos")
         if errors: raise CommandError("Validación demo fallida: " + "; ".join(errors))
-        return dict(seed=seed, users=User.objects.filter(username__in=["rviquez", "rsantos", "cajero"]).count(),
+        return dict(seed=seed, users=User.objects.filter(username=os.getenv("DEMO_USERNAME", "demo")).count(),
             customers=Cliente.objects.count(), suppliers=Proveedor.objects.count(), products=Producto.objects.count(),
             sales=Venta.objects.count(), cash_sales=Venta.objects.filter(tipo_venta="CONTADO").count(),
             credit_sales=Venta.objects.filter(tipo_venta="CREDITO").count(), purchases=Compra.objects.count(),
@@ -473,7 +466,7 @@ class Command(BaseCommand):
 
     def _summary(self, m):
         line = "=" * 56
-        self.stdout.write(f"\n{line}\n QUESO LOS SANTOS — DEMO DATA\n{line}\nPeriodo: {START} → {END}\nSeed: {m['seed']}\n")
+        self.stdout.write(f"\n{line}\n BYTEFORGE TECHNOLOGIES — DEMO DATA\n{line}\nPeriodo: {START} → {END}\nSeed: {m['seed']}\n")
         fields = [("Usuarios principales", "users"), ("Clientes", "customers"), ("Proveedores", "suppliers"),
             ("Productos", "products"), ("Ventas", "sales"), ("Ventas contado", "cash_sales"),
             ("Ventas crédito", "credit_sales"), ("Ventas Estimado Cliente", "generic_sales"),

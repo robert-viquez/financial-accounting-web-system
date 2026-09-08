@@ -18,6 +18,7 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, 
 from compras.models import Compra
 from finanzas.models import CuentaPorCobrar, CuentaPorPagar
 from inventario.models import Producto
+from usuarios.models import ConfiguracionEmpresa
 from ventas.models import Venta
 
 from .models import AsientoContable
@@ -40,12 +41,19 @@ REPORT_TITLES = OrderedDict([
 CURRENCY = '₡#,##0.00;[Red]-₡#,##0.00'
 
 
+def _company_name():
+    return (
+        ConfiguracionEmpresa.objects.filter(pk=1).values_list("nombre", flat=True).first()
+        or "Sistema financiero-contable"
+    )
+
+
 def build_accounting_summary_xlsx(rows, totals, period_label):
     """Exporta exactamente el resultado filtrado del resumen, con importes numéricos."""
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = "Resumen Contable"
-    sheet.append(["Queso Los Santos S.A."])
+    sheet.append([_company_name()])
     sheet.append(["Resumen Contable"])
     sheet.append([period_label])
     sheet.append([f"Generado: {timezone.localtime():%d/%m/%Y %H:%M}"])
@@ -161,7 +169,7 @@ def build_xlsx(keys, desde=None, hasta=None):
     workbook = Workbook()
     workbook.remove(workbook.active)
     summary = workbook.create_sheet("Resumen")
-    summary.append(["Queso Los Santos S.A."])
+    summary.append([_company_name()])
     summary.append(["Resumen de reportes seleccionados"])
     summary.append([_period(desde, hasta)])
     summary.append([f"Generado: {timezone.localtime():%d/%m/%Y %H:%M}"])
@@ -172,7 +180,7 @@ def build_xlsx(keys, desde=None, hasta=None):
     for key in keys:
         headers, rows, metrics = report_data(key, desde, hasta)
         sheet = workbook.create_sheet(REPORT_TITLES[key][:31])
-        sheet.append(["Queso Los Santos S.A."])
+        sheet.append([_company_name()])
         sheet.append([REPORT_TITLES[key]])
         sheet.append([_period(desde, hasta)])
         sheet.append([f"Generado: {timezone.localtime():%d/%m/%Y %H:%M}"])
@@ -234,7 +242,7 @@ def build_pdf(keys, desde=None, hasta=None):
         headers, rows, metrics = report_data(key, desde, hasta)
         if index:
             story.append(PageBreak())
-        story.extend([Paragraph("Queso Los Santos S.A.", title), Paragraph(REPORT_TITLES[key], title), Paragraph(_period(desde, hasta), styles["BodyText"]), Spacer(1, 5 * mm)])
+        story.extend([Paragraph(_company_name(), title), Paragraph(REPORT_TITLES[key], title), Paragraph(_period(desde, hasta), styles["BodyText"]), Spacer(1, 5 * mm)])
         display_rows = rows or [["Sin registros para el período seleccionado."] + [""] * (len(headers) - 1)]
         data = [[Paragraph(str(cell), normal) for cell in headers]] + [[Paragraph(_pdf_value(cell), normal) for cell in row] for row in display_rows]
         table = Table(data, repeatRows=1, hAlign="LEFT")
@@ -246,7 +254,7 @@ def build_pdf(keys, desde=None, hasta=None):
     def footer(canvas, document):
         canvas.saveState()
         canvas.setFont("Helvetica", 8)
-        canvas.drawString(12 * mm, 8 * mm, "Queso Los Santos S.A. — Reportes")
+        canvas.drawString(12 * mm, 8 * mm, f"{_company_name()} — Reportes")
         canvas.drawRightString(landscape(A4)[0] - 12 * mm, 8 * mm, f"Página {document.page}")
         canvas.restoreState()
 

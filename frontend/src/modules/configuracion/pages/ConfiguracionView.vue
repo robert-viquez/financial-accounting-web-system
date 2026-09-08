@@ -18,7 +18,7 @@ import {
   getUnidadesMedida,
   updateUnidadMedida,
 } from "@/modules/inventario/api/ProductosServices";
-import defaultLogo from "@/assets/queso-los-santos-logo.png";
+import defaultLogo from "@/assets/byteforge-logo.svg";
 import {
   createMedioPago,
   deleteMedioPago,

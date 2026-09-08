@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
+  <title id="title">ByteForge Technologies</title>
+  <rect width="128" height="128" rx="24" fill="#17365d"/>
+  <path d="M35 27h31c18 0 29 8 29 22 0 8-4 14-11 18 10 3 15 10 15 20 0 16-12 25-32 25H35V27Zm22 17v16h9c7 0 11-3 11-8s-4-8-11-8h-9Zm0 32v19h11c8 0 12-3 12-9 0-7-4-10-13-10H57Z" fill="#fff"/>
+  <path d="M23 45h12M23 64h12M23 83h12M99 45h8M99 64h8M99 83h8" stroke="#43c7f4" stroke-width="6" stroke-linecap="round"/>
+</svg>

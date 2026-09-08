@@ -242,6 +242,6 @@ def exportar_reportes(request, formato):
         return Response({"detail": "Formato de exportación no soportado."}, status=status.HTTP_404_NOT_FOUND)
     period = f"{desde or 'inicio'}_{hasta or timezone.localdate()}"
     response = HttpResponse(content, content_type=content_type)
-    response["Content-Disposition"] = f'attachment; filename="QuesoLosSantos_Reportes_{period}.{extension}"'
+    response["Content-Disposition"] = f'attachment; filename="FAWS_Reportes_{period}.{extension}"'
     response["X-Content-Type-Options"] = "nosniff"
     return response
