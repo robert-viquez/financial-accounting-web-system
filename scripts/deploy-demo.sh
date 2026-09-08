@@ -6,6 +6,7 @@ readonly DEPLOY_DIR="/docker/faws-demo/financial-accounting-web-system"
 readonly HEALTH_URL="http://127.0.0.1:5173/api/health/"
 readonly HEALTH_ATTEMPTS=20
 readonly HEALTH_DELAY_SECONDS=5
+readonly COMPOSE_FILES="-f compose.yml -f compose.homeserver.yml"
 
 cd "$DEPLOY_DIR"
 
@@ -24,13 +25,13 @@ echo "Updating deployment checkout to $expected_commit..."
 git reset --hard "$expected_commit"
 
 echo "Validating Docker Compose configuration..."
-docker compose config --quiet
+docker compose $COMPOSE_FILES config --quiet
 
 echo "Building and updating services..."
-docker compose up --detach --build
+docker compose $COMPOSE_FILES up --detach --build
 
 echo "Applying database migrations..."
-docker compose exec --no-TTY backend python manage.py migrate --noinput
+docker compose $COMPOSE_FILES exec --no-TTY backend python manage.py migrate --noinput
 
 echo "Waiting for $HEALTH_URL..."
 for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt++)); do
@@ -47,6 +48,6 @@ for ((attempt = 1; attempt <= HEALTH_ATTEMPTS; attempt++)); do
 done
 
 echo "Deployment failed: health did not recover." >&2
-docker compose ps || true
-docker compose logs --tail 100 backend frontend || true
+docker compose $COMPOSE_FILES ps || true
+docker compose $COMPOSE_FILES logs --tail 100 backend frontend || true
 exit 1
