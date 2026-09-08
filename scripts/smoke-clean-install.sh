@@ -58,7 +58,7 @@ curl --fail --silent "$BASE_URL/api/health/" | grep -Eq '"status"[[:space:]]*:[[
 curl --fail --silent "$BASE_URL/api/setup/status/" | grep -Eq '"setup_required"[[:space:]]*:[[:space:]]*true'
 
 "${COMPOSE[@]}" exec -T backend python manage.py shell -c \
-  'from django.contrib.auth.models import User; from inventario.models import Producto; from terceros.models import Cliente, Proveedor; assert not User.objects.exists(); assert not Producto.objects.exists(); assert not Cliente.objects.exists(); assert not Proveedor.objects.exists()'
+  'from django.contrib.auth.models import User; from compras.models import Compra; from inventario.models import Producto; from terceros.models import Cliente, Proveedor; from usuarios.models import ConfiguracionEmpresa; from ventas.models import Venta; assert not User.objects.exists(); assert not Producto.objects.exists(); assert not Proveedor.objects.exists(); assert not Venta.objects.exists(); assert not Compra.objects.exists(); assert not ConfiguracionEmpresa.objects.exists(); assert list(Cliente.objects.values_list("nombre", flat=True)) == ["Estimado Cliente"]'
 
 curl --fail --silent --json "{\"username\":\"$ADMIN_USERNAME\",\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\",\"password_confirm\":\"$ADMIN_PASSWORD\"}" \
   "$BASE_URL/api/setup/admin/" >/dev/null
