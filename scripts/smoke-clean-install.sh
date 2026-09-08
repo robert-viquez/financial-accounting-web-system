@@ -29,7 +29,14 @@ docker run -d --name "$CONTAINER" -p "${PORT}:80" -v "${VOLUME}:/data" "$IMAGE" 
 
 for attempt in {1..40}; do
   running="$(docker inspect --format '{{.State.Running}}' "$CONTAINER")"
-  if [[ "$running" != "true" ]]; then docker logs "$CONTAINER"; exit 1; fi
+  if [[ "$running" != "true" ]]; then
+    startup_log="$(docker logs "$CONTAINER" 2>&1)"
+    startup_log="${startup_log//'%'/'%25'}"
+    startup_log="${startup_log//$'\r'/'%0D'}"
+    startup_log="${startup_log//$'\n'/'%0A'}"
+    echo "::error file=docker/standalone-entrypoint.sh::Container exited during startup: ${startup_log}"
+    exit 1
+  fi
   health="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$CONTAINER")"
   if [[ "$health" == "healthy" ]] && curl --fail --silent --max-time 5 "$BASE_URL/api/health/" >/dev/null; then break; fi
   if [[ "$attempt" == 40 ]]; then docker logs "$CONTAINER"; exit 1; fi
