@@ -34,11 +34,24 @@ class SeedDemoIntegrationTests(TestCase):
     @override_settings(DEBUG=False)
     @patch.dict("os.environ", {"ALLOW_DEMO_SEED": "true", "DEMO_USERNAME": "demo", "DEMO_PASSWORD": "demo-test-only"})
     def test_seed_es_reproducible_y_matematicamente_integro(self):
+        technical = User.objects.create_superuser(
+            "technical-admin",
+            email="technical@example.test",
+            password="technical-password-unchanged",
+        )
+        technical_password_hash = technical.password
         output = StringIO()
         call_command("seed_demo", reset=True, seed=20260828, stdout=output)
         first = self._signature()
 
         self.assertIn("DEMO DATABASE VALIDATED", output.getvalue())
+        technical.refresh_from_db()
+        self.assertEqual(technical.username, "technical-admin")
+        self.assertEqual(technical.email, "technical@example.test")
+        self.assertEqual(technical.password, technical_password_hash)
+        self.assertTrue(technical.check_password("technical-password-unchanged"))
+        self.assertTrue(technical.is_staff)
+        self.assertTrue(technical.is_superuser)
         self.assertEqual(first[:8], (16, 6, 20, 66, 3, 18, 12, 10))
         self.assertEqual(PagoCliente.objects.count(), 2)
         self.assertFalse(Producto.objects.filter(stock_actual__lt=0).exists())
@@ -78,6 +91,10 @@ class SeedDemoIntegrationTests(TestCase):
         call_command("seed_demo", reset=True, seed=20260828, stdout=StringIO())
         self.assertEqual(first, self._signature())
         self.assertTrue(User.objects.get(username="demo").check_password("demo-test-only"))
+        technical.refresh_from_db()
+        self.assertEqual(technical.password, technical_password_hash)
+        self.assertTrue(technical.is_staff)
+        self.assertTrue(technical.is_superuser)
 
     @staticmethod
     def _signature():

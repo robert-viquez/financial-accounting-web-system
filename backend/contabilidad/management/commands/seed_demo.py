@@ -100,14 +100,15 @@ class Command(BaseCommand):
 
     @staticmethod
     def _reset():
-        # Orden explícito para respetar los PROTECT; se preservan catálogos, roles y configuración.
+        # Orden explícito para respetar los PROTECT. Las cuentas técnicas se preservan;
+        # solo los usuarios de negocio forman parte del entorno demo reiniciable.
         for model in (DetalleAsiento, AsientoContable, PagoCliente, PagoProveedor,
                       CuentaPorCobrar, CuentaPorPagar, DetalleVenta, DetalleCompra,
                       Venta, Compra, MovimientoInventario, SecuenciaComprobanteVenta,
                       Producto, Cliente, Proveedor, RegistroAuditoria, PeriodoContable,
                       CategoriaProducto, ConfiguracionEmpresa):
             model.objects.all().delete()
-        User.objects.all().delete()
+        User.objects.filter(is_superuser=False).delete()
 
     @staticmethod
     def _masters(password):
