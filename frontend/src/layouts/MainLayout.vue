@@ -19,6 +19,7 @@ const vuetifyLocale = useVuetifyLocale();
 const { locale, t } = useI18n();
 const uiStore = useUiStore();
 const { isDark } = storeToRefs(uiStore);
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
 const drawer = ref(true);
 const rail = ref(false);
 const empresaNombre = ref("Sistema financiero-contable");
@@ -242,7 +243,7 @@ onBeforeUnmount(() => {
 
       <v-spacer />
 
-      <v-btn-toggle :model-value="locale" density="compact" mandatory variant="text" @update:model-value="changeLanguage">
+      <v-btn-toggle v-if="!demoMode" :model-value="locale" density="compact" mandatory variant="text" @update:model-value="changeLanguage">
         <v-btn value="es" size="small">ES</v-btn>
         <v-btn value="en" size="small">EN</v-btn>
       </v-btn-toggle>
