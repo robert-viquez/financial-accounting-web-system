@@ -3,14 +3,14 @@ services:
     environment:
       ALLOW_DEMO_SEED: "true"
       DEMO_USERNAME: demo
-      DEMO_PASSWORD: FAWS-Demo-2026!
+      DEMO_PASSWORD: demo
 
   frontend:
     build:
       args:
         VITE_DEMO_MODE: "true"
         VITE_DEMO_USERNAME: demo
-        VITE_DEMO_PASSWORD: FAWS-Demo-2026!
+        VITE_DEMO_PASSWORD: demo
     networks:
       - default
       - proxy

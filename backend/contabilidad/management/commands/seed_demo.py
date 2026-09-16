@@ -134,13 +134,14 @@ class Command(BaseCommand):
         )
         demo.groups.add(roles["Operaciones"])
         ConfiguracionEmpresa.objects.update_or_create(pk=1, defaults={
-            "nombre": "ByteForge Technologies",
+            "nombre": "ByteForge Tech Demo",
             "identificacion": "FICTICIA-DEMO-001",
             "telefono": "0000-0000",
             "correo": "contacto@byteforge.test",
             "direccion": "Dirección ficticia para demostración, Costa Rica",
             "iva": Decimal("13.00"), "moneda": "CRC",
             "lector_codigo_barras": True, "prefijo_productos": "BF",
+            "locale_predeterminado": "en",
         })
         unit, _ = UnidadMedida.objects.update_or_create(
             codigo="UND", defaults={"nombre": "Unidad", "simbolo": "unidades", "permite_decimales": False, "estado": True})

@@ -18,7 +18,7 @@ const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
 const logoUrl = ref("");
-const empresaNombre = ref("FAWS");
+const empresaNombre = ref("ByteForge Tech Demo");
 
 onMounted(async () => {
   try {
@@ -62,20 +62,6 @@ function changeLanguage(value) {
       <img v-if="logoUrl" class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
       <h1>{{ empresaNombre }}</h1>
       <p class="login-subtitle">{{ $t("auth.systemName") }}</p>
-      <div v-if="demoMode" class="demo-notice">
-        <p>{{ $t("auth.demoCredentials") }}</p>
-        <dl>
-          <div>
-            <dt>{{ $t("auth.username") }}</dt>
-            <dd>{{ demoUsername }}</dd>
-          </div>
-          <div>
-            <dt>{{ $t("auth.password") }}</dt>
-            <dd>{{ demoPassword }}</dd>
-          </div>
-        </dl>
-      </div>
-
       <form @submit.prevent="handleLogin">
         <label for="username">{{ $t("auth.username") }}</label>
         <input id="username" v-model="username" type="text" autocomplete="username" required />
@@ -183,43 +169,6 @@ h1 {
 .login-subtitle {
   color: #4b5563;
   margin-bottom: 24px;
-}
-
-.demo-notice {
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 8px;
-  color: #1e40af;
-  font-size: 0.9rem;
-  margin: -8px 0 20px;
-  padding: 10px 12px;
-  text-align: center;
-}
-
-.demo-notice p {
-  margin: 0 0 8px;
-}
-
-.demo-notice dl {
-  display: grid;
-  gap: 4px;
-  margin: 0;
-}
-
-.demo-notice dl div {
-  display: flex;
-  gap: 6px;
-  justify-content: center;
-}
-
-.demo-notice dt {
-  font-weight: 700;
-}
-
-.demo-notice dd {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  margin: 0;
-  user-select: all;
 }
 
 form {
