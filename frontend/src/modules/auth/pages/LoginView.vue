@@ -10,8 +10,10 @@ const router = useRouter();
 const { locale, t } = useI18n();
 
 const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
-const username = ref(demoMode ? import.meta.env.VITE_DEMO_USERNAME || "" : "");
-const password = ref(demoMode ? import.meta.env.VITE_DEMO_PASSWORD || "" : "");
+const demoUsername = demoMode ? import.meta.env.VITE_DEMO_USERNAME || "" : "";
+const demoPassword = demoMode ? import.meta.env.VITE_DEMO_PASSWORD || "" : "";
+const username = ref(demoUsername);
+const password = ref(demoPassword);
 const showPassword = ref(false);
 const error = ref("");
 const loading = ref(false);
@@ -60,7 +62,19 @@ function changeLanguage(value) {
       <img v-if="logoUrl" class="login-logo" :src="logoUrl" :alt="$t('navigation.companyLogo', { name: empresaNombre })" />
       <h1>{{ empresaNombre }}</h1>
       <p class="login-subtitle">{{ $t("auth.systemName") }}</p>
-      <p v-if="demoMode" class="demo-notice">{{ $t("auth.demoCredentials") }}</p>
+      <div v-if="demoMode" class="demo-notice">
+        <p>{{ $t("auth.demoCredentials") }}</p>
+        <dl>
+          <div>
+            <dt>{{ $t("auth.username") }}</dt>
+            <dd>{{ demoUsername }}</dd>
+          </div>
+          <div>
+            <dt>{{ $t("auth.password") }}</dt>
+            <dd>{{ demoPassword }}</dd>
+          </div>
+        </dl>
+      </div>
 
       <form @submit.prevent="handleLogin">
         <label for="username">{{ $t("auth.username") }}</label>
@@ -180,6 +194,32 @@ h1 {
   margin: -8px 0 20px;
   padding: 10px 12px;
   text-align: center;
+}
+
+.demo-notice p {
+  margin: 0 0 8px;
+}
+
+.demo-notice dl {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+}
+
+.demo-notice dl div {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+.demo-notice dt {
+  font-weight: 700;
+}
+
+.demo-notice dd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  margin: 0;
+  user-select: all;
 }
 
 form {

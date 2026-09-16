@@ -37,13 +37,13 @@ FRONTEND_BIND_ADDRESS=127.0.0.1
 FRONTEND_PORT=5173
 VITE_DEMO_MODE=true
 VITE_DEMO_USERNAME=demo
-VITE_DEMO_PASSWORD=<public-demo-password>
+VITE_DEMO_PASSWORD=FAWS-Demo-2026!
 ALLOW_DEMO_SEED=true
 DEMO_USERNAME=demo
-DEMO_PASSWORD=<public-demo-password>
+DEMO_PASSWORD=FAWS-Demo-2026!
 ```
 
-All three `VITE_DEMO_*` variables shown above are required for the public demo. They are compiled into the browser bundle when the frontend image is built, so their values are client-visible and must be treated as public, never as secrets. Use them only for the non-privileged `demo` account, and set `VITE_DEMO_PASSWORD` to the same value as the backend `DEMO_PASSWORD` so the preloaded form can authenticate normally. Never reuse this password for MySQL, Django superusers, Cloudflare, or any infrastructure account.
+All three `VITE_DEMO_*` variables shown above are required for the public demo. They are compiled into the browser bundle when the frontend image is built, so their values are client-visible and must be treated as public, never as secrets. `compose.demo.yml` supplies these public demo-only values so the login is prefilled on every deployment. Use them only for the non-privileged `demo` account, and keep `VITE_DEMO_PASSWORD` equal to the backend `DEMO_PASSWORD` so the preloaded form can authenticate normally. Never reuse this password for MySQL, Django superusers, Cloudflare, or any infrastructure account.
 
 Demo login prefill is enabled only when `VITE_DEMO_MODE` is exactly `true`. With the default `false` value, the fields remain empty and no demo notice is rendered. Changing a `VITE_*` value requires rebuilding the frontend image; `docker compose up` alone does not update values already compiled into the bundle.
 

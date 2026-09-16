@@ -14,7 +14,13 @@ The interface supports Spanish and English. Language is resolved from the user p
 
 **[Open live demo](https://faws.robertviquez.com)** · **[Documentation](docs/README.md)** · **[Product tour](docs/product-tour.md)** · **[Architecture](docs/architecture.md)**
 
-The demo uses a fictional **ByteForge Technologies** dataset. Credentials are prefilled on the login screen and authenticate through the normal application flow. Data is restored automatically every six hours; do not enter personal, confidential, or production information.
+The demo uses a fictional **ByteForge Technologies** dataset. Credentials are prefilled on the login screen and authenticate through the normal application flow:
+
+| Username | Password |
+| --- | --- |
+| `demo` | `FAWS-Demo-2026!` |
+
+Data is restored automatically every six hours; do not enter personal, confidential, or production information.
 
 ## What FAWS does
 
