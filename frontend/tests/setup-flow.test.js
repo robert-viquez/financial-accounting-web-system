@@ -24,3 +24,18 @@ test("initialized installations cannot open setup", () => {
     "/dashboard",
   );
 });
+
+test("demo mode never opens initial setup", () => {
+  assert.equal(
+    resolveSetupNavigation({ setupRequired: true, path: "/login", authenticated: false, demoMode: true }),
+    undefined,
+  );
+  assert.equal(
+    resolveSetupNavigation({ setupRequired: true, path: "/setup", authenticated: false, demoMode: true }),
+    "/login",
+  );
+  assert.equal(
+    resolveSetupNavigation({ setupRequired: true, path: "/setup", authenticated: true, demoMode: true }),
+    "/dashboard",
+  );
+});

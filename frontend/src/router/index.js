@@ -8,6 +8,8 @@ import { resolveSetupNavigation } from "@/modules/auth/setupFlow";
 import MainLayout from "@/layouts/MainLayout.vue";
 import DashboardView from "@/modules/dashboard/pages/DashboardView.vue";
 
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
+
 const routes = [
   {
     path: "/",
@@ -111,9 +113,10 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   try {
     const setupRedirect = resolveSetupNavigation({
-      setupRequired: await getSetupRequired(),
+      setupRequired: demoMode ? false : await getSetupRequired(),
       path: to.path,
       authenticated: isAuthenticated(),
+      demoMode,
     });
     if (setupRedirect) return setupRedirect;
   } catch {
