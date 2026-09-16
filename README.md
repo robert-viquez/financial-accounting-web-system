@@ -18,7 +18,7 @@ The demo uses a fictional **ByteForge Technologies** dataset. Credentials are pr
 
 | Username | Password |
 | --- | --- |
-| `demo` | `FAWS-Demo-2026!` |
+| `demo` | `demo*` |
 
 Data is restored automatically every six hours; do not enter personal, confidential, or production information.
 
